@@ -7,13 +7,14 @@
 #   - 启动入口 docker-entrypoint.sh：迁移 → seed（幂等）→ 启动
 
 # ---------- 构建阶段 ----------
-FROM node:22-bookworm-slim AS builder
+# 基础镜像走国内加速源（极空间/国内网络直连 Docker Hub 常超时）
+FROM docker.m.daocloud.io/library/node:22-bookworm-slim AS builder
 
 WORKDIR /build
 
-# 先装依赖（利用层缓存）
+# 先装依赖（利用层缓存；npm 走国内镜像避免超时）
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm config set registry https://registry.npmmirror.com && npm ci
 
 # 再拷源码并构建
 COPY . .
@@ -21,7 +22,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # ---------- 运行阶段 ----------
-FROM node:22-bookworm-slim
+FROM docker.m.daocloud.io/library/node:22-bookworm-slim
 
 ENV NODE_ENV=production
 WORKDIR /app
