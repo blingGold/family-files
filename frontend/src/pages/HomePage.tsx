@@ -1,0 +1,477 @@
+import { TabBar } from 'antd-mobile';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  AppOutline,
+  BellOutline,
+  CheckShieldOutline,
+  ClockCircleOutline,
+  UserOutline,
+} from 'antd-mobile-icons';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { api } from '../api';
+import { DISEASE_PRESETS, DISEASE_CATEGORIES, CUSTOM_DISEASE, matchDisease } from '../constants/diseases';
+
+const STATUS_META: Record<string, { label: string; bar: string; tagBg: string; tagColor: string }> = {
+  FOLLOWING: { label: '随访中', bar: '#5b8db8', tagBg: 'rgba(91,141,184,0.12)', tagColor: '#3d6b94' },
+  TREATING: { label: '治疗中', bar: '#c26b5a', tagBg: 'rgba(194,107,90,0.12)', tagColor: '#a04838' },
+  CURED: { label: '已治愈', bar: '#c9bfb3', tagBg: 'rgba(122,130,140,0.12)', tagColor: '#7a828c' },
+  CHRONIC: { label: '慢性管理', bar: '#7ba88c', tagBg: 'rgba(123,168,140,0.14)', tagColor: '#5a8069' },
+};
+
+function fmtDate(d: string) {
+  return d ? new Date(d).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }) : '';
+}
+function daysBetween(a: Date, b: Date) {
+  return Math.round((a.getTime() - b.getTime()) / 86400000);
+}
+function calcAge(birthDate?: string) {
+  if (!birthDate) return '';
+  const b = new Date(birthDate); const now = new Date();
+  let age = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age--;
+  return age > 0 ? `${age} 岁` : '';
+}
+
+function BellWithBadge({ count }: { count: number }) {
+  return (
+    <div style={{ position: 'relative', display: 'inline-flex', lineHeight: 1 }}>
+      <BellOutline style={{ fontSize: 22, color: '#2b2f36' }} />
+      {count > 0 && (
+        <span style={{
+          position: 'absolute', top: -4, right: -8, minWidth: 16, height: 16,
+          padding: '0 4px', borderRadius: 8, background: '#c26b5a', color: '#fff',
+          fontSize: 10, fontWeight: 600, lineHeight: '16px', textAlign: 'center',
+        }}>{count > 99 ? '99+' : count}</span>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 13, color: '#7a828c', marginBottom: 4 }}>{label}</div>
+      {children}
+    </div>
+  );
+}
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '10px 12px', border: '1px solid #e5e7ec', borderRadius: 8,
+  fontSize: 14, boxSizing: 'border-box', outline: 'none', background: '#fff',
+};
+
+export default function HomePage() {
+  const [tab, setTab] = useState('home');
+  const [patientId, setPatientId] = useState<number | null>(null);
+  const nav = useNavigate();
+  const qc = useQueryClient();
+
+  const [showNewPatient, setShowNewPatient] = useState(false);
+  const [showNewCondition, setShowNewCondition] = useState(false);
+  const [ocrBusy, setOcrBusy] = useState(false);
+  const [ocrText, setOcrText] = useState('');
+  const [ocrMatched, setOcrMatched] = useState<any>(null);
+  const ocrInputRef = useRef<HTMLInputElement>(null);
+  const [np, setNp] = useState<any>({});
+  const [nc, setNc] = useState<any>({});
+  // 新增疾病时的首次复查安排
+  const [fuOn, setFuOn] = useState(false);
+  const [fuItems, setFuItems] = useState('');
+  const [fuDate, setFuDate] = useState('');
+  const [fuRecurring, setFuRecurring] = useState(false);
+  const [fuInterval, setFuInterval] = useState(3);
+
+  const patientsQ = useQuery({ queryKey: ['patients'], queryFn: api.patients });
+  const patients = patientsQ.data || [];
+
+  useEffect(() => {
+    if (patientId === null && patients.length > 0) setPatientId(patients[0].id);
+  }, [patients, patientId]);
+
+  const detailQ = useQuery({
+    queryKey: ['patient', patientId],
+    queryFn: () => api.patient(patientId!),
+    enabled: !!patientId,
+  });
+  const badgeQ = useQuery({ queryKey: ['badge'], queryFn: api.followupBadge, refetchInterval: 30000 });
+
+  const patient = detailQ.data;
+  const conditions = patient?.conditions || [];
+  const activeConditions = conditions.filter((c: any) => c.status !== 'CURED');
+  const pendingFus = conditions.flatMap((c: any) =>
+    (c.followUps || []).map((f: any) => ({ ...f, conditionName: c.name, conditionId: c.id })),
+  ).sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+  const insurances = patient?.insurances || [];
+
+  const closeNewPatient = () => {
+    setShowNewPatient(false);
+    setNp({});
+  };
+
+  const closeNewCondition = () => {
+    setShowNewCondition(false);
+    setNc({});
+    setFuOn(false); setFuItems(''); setFuDate(''); setFuRecurring(false);
+    setOcrText(''); setOcrMatched(null);
+  };
+
+  const submitNewPatient = async () => {
+    if (!np.name) return alert('请输入姓名');
+    const created = await api.createPatient(np);
+    setShowNewPatient(false); setNp({});
+    qc.invalidateQueries({ queryKey: ['patients'] });
+    setPatientId(created.id);
+  };
+  const handleOcr = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setOcrBusy(true); setOcrText(''); setOcrMatched(null);
+    try {
+      const r = await api.ocr(file);
+      setOcrText(r.text);
+      const p = r.parsed;
+      if (p) {
+        const m = p.disease ? matchDisease(p.disease) : null;
+        if (m) {
+          setOcrMatched(m);
+          setNc((prev: any) => ({
+            ...prev, name: m.name,
+            aliases: p.aliases || m.aliases,
+            advice: p.advice || '', examSuggest: p.examSuggest || '',
+            examResult: p.examResult || '', medication: p.medication || '',
+          }));
+        } else {
+          setNc((prev: any) => ({
+            ...prev,
+            name: p.disease || prev.name,
+            aliases: p.aliases || prev.aliases,
+            advice: p.advice || '', examSuggest: p.examSuggest || '',
+            examResult: p.examResult || '', medication: p.medication || '',
+          }));
+        }
+        if (p.followUpDate) { setFuOn(true); setFuDate(p.followUpDate); }
+        if (p.followUpItems) setFuItems(p.followUpItems);
+        setNc((prev: any) => ({
+          ...prev,
+          visitDate: p.visitDate || prev.visitDate,
+          hospital: p.hospital || prev.hospital,
+          doctor: p.doctor || prev.doctor,
+        }));
+      } else {
+        const m = matchDisease(r.text);
+        if (m) {
+          setOcrMatched(m);
+          setNc((prev: any) => ({ ...prev, name: m.name, aliases: m.aliases }));
+        }
+      }
+    } catch (err: any) {
+      alert(err?.response?.data?.message || '识别失败，请重试');
+    } finally {
+      setOcrBusy(false);
+      e.target.value = '';
+    }
+  };
+
+  const submitNewCondition = async () => {
+    const name = nc.name === CUSTOM_DISEASE ? (nc.customName || '').trim() : nc.name;
+    if (!name) return alert('请输入疾病名称');
+    const created = await api.createCondition(patientId!, { status: 'FOLLOWING', ...nc, name });
+    // OCR/手动填了就诊信息 → 自动创建就诊记录
+    if (nc.visitDate || nc.hospital || nc.doctor || nc.advice || nc.examResult || nc.medication) {
+      const exams = nc.examResult ? [{ name: '辅助检查', conclusion: nc.examResult }] : [];
+      const medications = nc.medication ? [{ name: '用药', dosage: nc.medication }] : [];
+      await api.createEncounter(created.id, {
+        encounterDate: nc.visitDate ? new Date(nc.visitDate).toISOString() : new Date().toISOString(),
+        hospital: nc.hospital || '',
+        doctor: nc.doctor || '',
+        diagnosis: name,
+        advice: nc.advice || '',
+        exams,
+        medications,
+      });
+    }
+    if (fuOn) {
+      await api.createFollowUp(created.id, {
+        patientId: patientId!,
+        dueDate: new Date(fuDate).toISOString(),
+        items: fuItems || '首次复查',
+        recurring: fuRecurring,
+        intervalMonths: fuRecurring ? fuInterval : undefined,
+      });
+    }
+    closeNewCondition();
+    qc.invalidateQueries({ queryKey: ['patient', patientId] });
+    qc.invalidateQueries();
+  };
+
+  if (patientsQ.isLoading) return <div style={{ padding: 40, textAlign: 'center' }}>加载中…</div>;
+
+  return (
+    <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh', background: '#f4f5f7', paddingBottom: 80 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px 8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <select value={patientId ?? ''} onChange={(e) => setPatientId(Number(e.target.value))}
+            style={{ fontSize: 18, fontWeight: 600, color: '#2b2f36', border: 'none', background: 'transparent', outline: 'none' }}>
+            {patients.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <span onClick={() => setShowNewPatient(true)} style={{ fontSize: 20, color: '#5b8db8', padding: '0 6px', cursor: 'pointer' }}>+</span>
+        </div>
+        <BellWithBadge count={badgeQ.data?.count || 0} />
+      </div>
+
+      <div style={{ padding: '8px 16px 24px' }}>
+        <div style={{ background: '#fff', borderRadius: 16, padding: 16, marginBottom: 20, border: '0.5px solid #e5e7ec' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 52, height: 52, borderRadius: 16, background: '#5b8db8', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <UserOutline style={{ fontSize: 26 }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 17, fontWeight: 600, color: '#2b2f36' }}>
+                {patient?.name || '未选择'}
+                <span style={{ fontSize: 12, color: '#7a828c', fontWeight: 400, marginLeft: 8 }}>
+                  {patient?.gender === 'MALE' ? '男' : patient?.gender === 'FEMALE' ? '女' : ''}
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: '#7a828c', marginTop: 4 }}>
+                {calcAge(patient?.birthDate) || '年龄未知'} · {patient?.heightCm ? `${patient.heightCm} cm` : '身高—'} · {patient?.weightKg ? `${patient.weightKg} kg` : '体重—'}
+              </div>
+              <div style={{ fontSize: 12, color: '#7a828c', marginTop: 2 }}>
+                血型 {patient?.bloodType || '—'}　过敏：{patient?.allergies || '无记录'}
+              </div>
+            </div>
+          </div>
+          {patient?.chronicTags && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+              {patient.chronicTags.split(',').filter(Boolean).map((t: string) => (
+                <span key={t} style={{ fontSize: 12, color: '#4a5568', background: '#eef1f5', padding: '4px 10px', borderRadius: 999 }}>{t}</span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{ fontSize: 15, fontWeight: 600, color: '#2b2f36', margin: '20px 0 10px' }}>即将复查</div>
+        {pendingFus.length === 0 && (
+          <div style={{ background: '#fff', borderRadius: 12, padding: 16, color: '#7a828c', fontSize: 13, border: '0.5px solid #e5e7ec' }}>近期没有待复查项</div>
+        )}
+        {pendingFus.map((f: any) => {
+          const due = new Date(f.dueDate); const now = new Date();
+          const overdue = due < now; const d = daysBetween(now, due);
+          return (
+            <div key={f.id} onClick={() => nav(`/conditions/${f.conditionId}`)} style={{ background: '#fff', borderRadius: 16, padding: 14, marginBottom: 10, border: '0.5px solid #e5e7ec', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+              <div style={{ width: 36, height: 36, borderRadius: 12, flexShrink: 0, background: overdue ? 'rgba(194,107,90,0.12)' : 'rgba(217,166,72,0.14)', color: overdue ? '#c26b5a' : '#d9a648', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ClockCircleOutline style={{ fontSize: 18 }} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 500, color: '#2b2f36' }}>{f.conditionName} · {f.items || '复查'}</div>
+                <div style={{ fontSize: 12, marginTop: 3, color: overdue ? '#c26b5a' : '#7a828c' }}>
+                  {overdue ? `逾期 ${-d} 天 · ` : `${d} 天后 · `}{fmtDate(f.dueDate)}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                <span onClick={(e) => { e.stopPropagation(); nav(`/conditions/${f.conditionId}/new-encounter`); }} style={{ fontSize: 12, color: '#4a5568', background: '#eef1f5', padding: '6px 12px', borderRadius: 999, cursor: 'pointer' }}>去复查</span>
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm('确定删除这条复查计划？')) {
+                      api.deleteFollowup(f.id).then(() => {
+                        qc.invalidateQueries({ queryKey: ['patient', patientId] });
+                        qc.invalidateQueries();
+                      }).catch(() => alert('删除失败'));
+                    }
+                  }}
+                  style={{ fontSize: 12, color: '#d97b7b', background: '#fdf3f3', padding: '6px 10px', borderRadius: 999, cursor: 'pointer' }}
+                >删除</span>
+              </div>
+            </div>
+          );
+        })}
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '24px 0 10px' }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#2b2f36' }}>当前疾病</div>
+          <span onClick={() => patientId && setShowNewCondition(true)} style={{ fontSize: 13, color: '#3d6b94', cursor: 'pointer' }}>+ 新增</span>
+        </div>
+        {activeConditions.length === 0 && (
+          <div style={{ background: '#fff', borderRadius: 12, padding: 16, color: '#7a828c', fontSize: 13, border: '0.5px solid #e5e7ec' }}>暂无疾病记录</div>
+        )}
+        {activeConditions.map((c: any) => {
+          const meta = STATUS_META[c.status] || STATUS_META.FOLLOWING;
+          const lastVisit = c.encounters?.[0]; const nextFu = c.followUps?.[0];
+          return (
+            <div key={c.id} onClick={() => nav(`/conditions/${c.id}`)} style={{ background: '#fff', borderRadius: 16, marginBottom: 10, cursor: 'pointer', border: '0.5px solid #e5e7ec', display: 'flex', overflow: 'hidden' }}>
+              <div style={{ width: 4, background: meta.bar, flexShrink: 0 }} />
+              <div style={{ padding: 14, flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 15, fontWeight: 600, color: '#2b2f36' }}>{c.name}</span>
+                  <span style={{ fontSize: 11, color: meta.tagColor, background: meta.tagBg, padding: '2px 8px', borderRadius: 999 }}>{meta.label}</span>
+                </div>
+                {c.aliases && (
+                  <div style={{ fontSize: 12, color: '#7a828c', marginTop: 2 }}>俗称：{c.aliases}</div>
+                )}
+                <div style={{ fontSize: 12, color: '#7a828c', marginTop: 8 }}>最近就诊 {lastVisit ? `${fmtDate(lastVisit.encounterDate)} · ${lastVisit.hospital || ''}` : '—'}</div>
+                <div style={{ fontSize: 12, marginTop: 2, color: '#7a828c' }}>{nextFu ? `下次复查 ${fmtDate(nextFu.dueDate)}` : '暂无待复查'}</div>
+              </div>
+            </div>
+          );
+        })}
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '24px 0 10px' }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#2b2f36' }}>可用保险（{insurances.length}）</div>
+          <span onClick={() => nav('/insurance')} style={{ fontSize: 13, color: '#3d6b94', cursor: 'pointer' }}>查看</span>
+        </div>
+        <div onClick={() => nav('/insurance')} style={{ background: '#fff', borderRadius: 16, padding: 14, border: '0.5px solid #e5e7ec', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 12, flexShrink: 0, background: 'rgba(91,141,184,0.12)', color: '#5b8db8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <CheckShieldOutline style={{ fontSize: 18 }} />
+          </div>
+          <div style={{ flex: 1, fontSize: 13, color: '#4a5568' }}>
+            {insurances.length === 0 ? '暂无保险记录，点击添加' : insurances.map((i: any) => i.kind === 'MEDICAL' ? '医保' : i.insurer).join(' · ')}
+          </div>
+        </div>
+      </div>
+
+      {showNewPatient && (
+        <div onClick={closeNewPatient} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'flex-end' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: '100%', maxWidth: 480, margin: '0 auto', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '80vh', overflow: 'auto' }}>
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>添加家庭成员</div>
+            <Field label="姓名 *"><input style={inputStyle} value={np.name || ''} onChange={(e) => setNp({ ...np, name: e.target.value })} placeholder="如：妈妈" /></Field>
+            <Field label="性别">
+              <select style={inputStyle} value={np.gender || ''} onChange={(e) => setNp({ ...np, gender: e.target.value })}>
+                <option value="">请选择</option><option value="MALE">男</option><option value="FEMALE">女</option>
+              </select>
+            </Field>
+            <Field label="出生日期"><input style={inputStyle} type="date" value={np.birthDate || ''} onChange={(e) => setNp({ ...np, birthDate: e.target.value })} /></Field>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ flex: 1 }}><Field label="身高 (cm)"><input style={inputStyle} inputMode="decimal" value={np.heightCm ?? ''} onChange={(e) => setNp({ ...np, heightCm: e.target.value === '' ? undefined : Number(e.target.value) })} placeholder="如：172" /></Field></div>
+              <div style={{ flex: 1 }}><Field label="体重 (kg)"><input style={inputStyle} inputMode="decimal" value={np.weightKg ?? ''} onChange={(e) => setNp({ ...np, weightKg: e.target.value === '' ? undefined : Number(e.target.value) })} placeholder="如：70" /></Field></div>
+            </div>
+            <Field label="血型"><input style={inputStyle} value={np.bloodType || ''} onChange={(e) => setNp({ ...np, bloodType: e.target.value })} placeholder="如：A+" /></Field>
+            <Field label="过敏史"><input style={inputStyle} value={np.allergies || ''} onChange={(e) => setNp({ ...np, allergies: e.target.value })} placeholder="如：青霉素" /></Field>
+            <Field label="慢性病标签"><div style={{ fontSize: 12, color: '#7a828c', padding: '8px 0' }}>标签将根据已录入的疾病自动生成</div></Field>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button onClick={closeNewPatient} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e5e7ec', background: '#fff', fontSize: 14 }}>取消</button>
+              <button onClick={submitNewPatient} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#5b8db8', color: '#fff', fontSize: 14 }}>保存</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showNewCondition && (
+        <div onClick={closeNewCondition} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'flex-end' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: '100%', maxWidth: 480, margin: '0 auto', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '80vh', overflow: 'auto' }}>
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>添加疾病</div>
+            <div style={{ background: '#f6f7f9', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+              <button
+                onClick={() => ocrInputRef.current?.click()}
+                style={{ width: '100%', padding: '12px', borderRadius: 8, border: 'none', background: '#5b8db8', color: '#fff', fontSize: 14 }}
+              >{ocrBusy ? '识别中…' : '📷 拍照/选图识别病历'}</button>
+              <input ref={ocrInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleOcr} />
+              {ocrMatched && (
+                <div style={{ marginTop: 8, fontSize: 12, color: '#5a8069', background: 'rgba(123,168,140,0.14)', padding: '6px 10px', borderRadius: 6 }}>
+                  识别到「{ocrMatched.name}」，已自动选中并填入称呼（可修改）
+                </div>
+              )}
+              {ocrText && !ocrMatched && (
+                <div style={{ marginTop: 8, fontSize: 12, color: '#7a828c', background: '#fff', padding: '6px 10px', borderRadius: 6, border: '0.5px solid #e5e7ec', maxHeight: 80, overflow: 'auto', whiteSpace: 'pre-wrap' }}>
+                  {ocrText.slice(0, 300)}
+                </div>
+              )}
+            </div>
+            <Field label="疾病 *">
+              <select
+                style={inputStyle}
+                value={nc.name === CUSTOM_DISEASE ? CUSTOM_DISEASE : (nc.name || '')}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === CUSTOM_DISEASE) {
+                    setNc({ ...nc, name: CUSTOM_DISEASE, customName: '', aliases: '' });
+                  } else {
+                    const preset = DISEASE_PRESETS.find((d) => d.name === v);
+                    setNc({ ...nc, name: v, aliases: preset ? preset.aliases : '' });
+                  }
+                }}
+              >
+                <option value="">请选择疾病</option>
+                {DISEASE_CATEGORIES.map((cat) => (
+                  <optgroup key={cat} label={cat}>
+                    {DISEASE_PRESETS.filter((d) => d.category === cat).map((d) => (
+                      <option key={d.name} value={d.name}>{d.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+                <option value={CUSTOM_DISEASE}>其他（自定义）</option>
+              </select>
+            </Field>
+            {nc.name === CUSTOM_DISEASE && (
+              <Field label="疾病名称 *"><input style={inputStyle} value={nc.customName || ''} onChange={(e) => setNc({ ...nc, customName: e.target.value })} placeholder="输入疾病名称" /></Field>
+            )}
+            <Field label="其他称呼"><input style={inputStyle} value={nc.aliases || ''} onChange={(e) => setNc({ ...nc, aliases: e.target.value })} placeholder="选中疾病自动带出，可修改；逗号分隔" /></Field>
+            <Field label="就诊日期"><input style={inputStyle} type="date" value={nc.visitDate || ''} onChange={(e) => setNc({ ...nc, visitDate: e.target.value })} /></Field>
+            <Field label="医院"><input style={inputStyle} value={nc.hospital || ''} onChange={(e) => setNc({ ...nc, hospital: e.target.value })} placeholder="如：北京大学第三医院（OCR 自动填入）" /></Field>
+            <Field label="医生"><input style={inputStyle} value={nc.doctor || ''} onChange={(e) => setNc({ ...nc, doctor: e.target.value })} placeholder="主治医生（手写签名需手动填）" /></Field>
+            <Field label="状态">
+              <select style={inputStyle} value={nc.status || 'FOLLOWING'} onChange={(e) => setNc({ ...nc, status: e.target.value })}>
+                <option value="FOLLOWING">随访中</option><option value="TREATING">治疗中</option>
+                <option value="CHRONIC">慢性</option><option value="CURED">已治愈</option>
+              </select>
+            </Field>
+            <Field label="发现日期"><input style={inputStyle} type="date" value={nc.discoveredDate || ''} onChange={(e) => setNc({ ...nc, discoveredDate: e.target.value })} /></Field>
+            <Field label="备注"><textarea style={{ ...inputStyle, minHeight: 60 }} value={nc.notes || ''} onChange={(e) => setNc({ ...nc, notes: e.target.value })} /></Field>
+            <Field label="医嘱"><textarea style={{ ...inputStyle, minHeight: 52 }} value={nc.advice || ''} onChange={(e) => setNc({ ...nc, advice: e.target.value })} placeholder="医生交代的注意事项（OCR 识别自动填入）" /></Field>
+            <Field label="检查建议"><textarea style={{ ...inputStyle, minHeight: 52 }} value={nc.examSuggest || ''} onChange={(e) => setNc({ ...nc, examSuggest: e.target.value })} placeholder="建议做的检查（OCR 识别自动填入）" /></Field>
+            <Field label="检查结果"><textarea style={{ ...inputStyle, minHeight: 52 }} value={nc.examResult || ''} onChange={(e) => setNc({ ...nc, examResult: e.target.value })} placeholder="本次检查结果（OCR 识别自动填入）" /></Field>
+            <Field label="用药建议"><textarea style={{ ...inputStyle, minHeight: 52 }} value={nc.medication || ''} onChange={(e) => setNc({ ...nc, medication: e.target.value })} placeholder="用药方案（OCR 识别自动填入）" /></Field>
+
+            <div style={{ background: '#f6f7f9', borderRadius: 8, padding: 12, marginTop: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#2b2f36' }}>安排首次复查</span>
+                <input type="checkbox" checked={fuOn} onChange={(e) => setFuOn(e.target.checked)} style={{ width: 18, height: 18 }} />
+              </div>
+              {fuOn && (
+                <>
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ fontSize: 13, color: '#7a828c', marginBottom: 4 }}>复查项目</div>
+                    <input style={inputStyle} value={fuItems} onChange={(e) => setFuItems(e.target.value)} placeholder="如：复查血压" />
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ fontSize: 13, color: '#7a828c', marginBottom: 4 }}>提醒日期（自定义）</div>
+                    <input style={inputStyle} type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+                    <span style={{ fontSize: 13, color: '#2b2f36' }}>周期复查（每 N 个月提醒）</span>
+                    <input type="checkbox" checked={fuRecurring} onChange={(e) => setFuRecurring(e.target.checked)} style={{ width: 18, height: 18 }} />
+                  </div>
+                  {fuRecurring && (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ fontSize: 13, color: '#7a828c', marginBottom: 4 }}>间隔（月）</div>
+                      <select style={inputStyle} value={fuInterval} onChange={(e) => setFuInterval(Number(e.target.value))}>
+                        {[1, 2, 3, 6, 12].map((n) => <option key={n} value={n}>{n} 个月</option>)}
+                      </select>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button onClick={closeNewCondition} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e5e7ec', background: '#fff', fontSize: 14 }}>取消</button>
+              <button onClick={submitNewCondition} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#5b8db8', color: '#fff', fontSize: 14 }}>保存</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, display: 'flex', justifyContent: 'center', background: '#fff', borderTop: '0.5px solid #e5e7ec', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+        <div style={{ width: '100%', maxWidth: 480 }}>
+          <TabBar activeKey={tab} style={{ height: 56 }} onChange={(k) => { setTab(k); if (k === 'alarm') nav('/followups'); else if (k === 'home') nav('/'); else if (k === 'ins') nav('/insurance'); else if (k === 'me') nav('/me'); }}>
+            <TabBar.Item key="home" title="首页" icon={<AppOutline style={{ fontSize: 22 }} />} />
+            <TabBar.Item key="alarm" title="提醒" icon={<BellWithBadge count={badgeQ.data?.count || 0} />} />
+            <TabBar.Item key="ins" title="保险" icon={<CheckShieldOutline style={{ fontSize: 22 }} />} />
+            <TabBar.Item key="me" title="我的" icon={<UserOutline style={{ fontSize: 22 }} />} />
+          </TabBar>
+        </div>
+      </div>
+    </div>
+  );
+}

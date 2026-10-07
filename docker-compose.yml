@@ -1,0 +1,47 @@
+# 家庭病历档案管理系统 - Docker Compose 编排
+# 用法：
+#   首次部署:  cp .env.example .env  → 填好密钥 →  docker compose up -d --build
+#   版本升级:  git pull → docker compose build → docker compose up -d（数据在 volume 中自动保留）
+#   数据位置:  docker volume ls（dbdata / uploads），重建容器/升级镜像均不丢失
+name: family-files
+
+services:
+  backend:
+    build: ./backend
+    image: family-files-backend:${TAG:-latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # 数据固定写入卷，与镜像生命周期解耦
+      DATABASE_URL: "file:/data/db/dev.db"
+      UPLOAD_DIR: "/data/uploads"
+    volumes:
+      - dbdata:/data/db
+      - uploads:/data/uploads
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  frontend:
+    build: ./frontend
+    image: family-files-frontend:${TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  # 数据库卷：SQLite 文件（首次为空库，migrate deploy 自动建表）
+  dbdata:
+  # 附件卷：上传的病历图片等
+  uploads:

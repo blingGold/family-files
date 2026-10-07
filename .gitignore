@@ -1,0 +1,39 @@
+# dependencies
+node_modules/
+.pnp/
+
+# build output
+dist/
+build/
+frontend/dist/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# database
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+backend/prisma/*.db
+backend/prisma/*.db-journal
+backend/prisma/*.db-wal
+backend/prisma/*.db-shm
+
+# uploaded attachments (do not commit real medical images)
+backend/uploads/
+!backend/uploads/.gitkeep
+
+# logs
+*.log
+npm-debug.log*
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/
+
+# 废弃的本机 OCR 二进制（已改用大模型识别）
+backend/scripts/ocr

@@ -1,0 +1,14 @@
+# 后端 Docker 构建上下文排除项（避免把依赖/数据/密钥打进镜像）
+node_modules
+dist
+.env
+.env.*
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+uploads
+*.log
+npm-debug.log*
+Dockerfile
+docker-entrypoint.sh

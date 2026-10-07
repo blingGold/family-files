@@ -1,0 +1,267 @@
+// 家庭病历档案管理系统 — Prisma schema
+// 设计依据：技术方案.md；附件模型按"方案 A"——只用外键关联，去掉 ownerType/ownerId 多态字段
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- 账号与权限 ----------
+
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  passwordHash String
+  displayName  String
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  access       UserPatientAccess[]
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+model UserPatientAccess {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  patientId Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, patientId])
+}
+
+// ---------- 病人 ----------
+
+model Patient {
+  id            Int       @id @default(autoincrement())
+  name          String
+  gender        Gender?
+  birthDate     DateTime?
+  heightCm      Float?
+  weightKg      Float?
+  bloodType     String?
+  allergies     String?
+  familyHistory String?
+  chronicTags   String?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  access        UserPatientAccess[]
+  conditions    Condition[]
+  insurances    Insurance[]
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+// ---------- 疾病（聚合根）----------
+
+model Condition {
+  id             Int             @id @default(autoincrement())
+  patientId      Int
+  name           String
+  aliases        String?
+  category       String?
+  discoveredDate DateTime?
+  status         ConditionStatus @default(FOLLOWING)
+  severity       String?
+  notes          String?
+  advice         String? // 医嘱
+  examSuggest    String? // 检查建议
+  examResult     String? // 检查结果
+  medication     String? // 用药建议
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  patient        Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  encounters     Encounter[]
+  followUps      FollowUp[]
+
+  @@index([patientId])
+}
+
+enum ConditionStatus {
+  FOLLOWING
+  TREATING
+  CURED
+  CHRONIC
+}
+
+// ---------- 就诊 ----------
+
+model Encounter {
+  id             Int       @id @default(autoincrement())
+  conditionId    Int
+  patientId      Int
+  encounterDate  DateTime
+  hospital       String?
+  department     String?
+  doctor         String?
+  chiefComplaint String?
+  diagnosis      String?
+  advice         String?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  condition      Condition @relation(fields: [conditionId], references: [id], onDelete: Cascade)
+  exams          Exam[]
+  medications    Medication[]
+  procedures     Procedure[]
+
+  @@index([conditionId])
+  @@index([patientId])
+}
+
+// ---------- 检查检验 ----------
+
+model Exam {
+  id          Int       @id @default(autoincrement())
+  encounterId Int
+  name        String
+  resultValue String?
+  conclusion  String?
+  examDate    DateTime?
+  createdAt   DateTime  @default(now())
+
+  encounter   Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+
+  @@index([encounterId])
+}
+
+// ---------- 用药 ----------
+
+model Medication {
+  id          Int       @id @default(autoincrement())
+  encounterId Int
+  name        String
+  dosage      String?
+  frequency   String?
+  startDate   DateTime?
+  endDate     DateTime?
+  purpose     String?
+  createdAt   DateTime  @default(now())
+
+  encounter   Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+
+  @@index([encounterId])
+}
+
+// ---------- 手术 / 操作 ----------
+
+model Procedure {
+  id            Int       @id @default(autoincrement())
+  encounterId   Int
+  name          String
+  procedureDate DateTime?
+  surgeon       String?
+  result        String?
+  hospital      String?
+  admissionDate DateTime?
+  dischargeDate DateTime?
+  notes         String?
+  createdAt     DateTime  @default(now())
+
+  encounter     Encounter  @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  attachments   Attachment[]
+
+  @@index([encounterId])
+}
+
+// ---------- 复查计划 ----------
+
+model FollowUp {
+  id                   Int            @id @default(autoincrement())
+  conditionId          Int
+  patientId            Int
+  dueDate              DateTime
+  items                String?
+  recurring            Boolean        @default(false)
+  intervalMonths       Int?
+  status               FollowUpStatus @default(PENDING)
+  completedDate        DateTime?
+  completedEncounterId Int?
+  notes                String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  condition            Condition      @relation(fields: [conditionId], references: [id], onDelete: Cascade)
+
+  @@index([conditionId])
+  @@index([patientId, dueDate, status])
+}
+
+enum FollowUpStatus {
+  PENDING
+  DONE
+  POSTPONED
+  CANCELLED
+}
+
+// ---------- 保险 ----------
+
+model Insurance {
+  id             Int            @id @default(autoincrement())
+  patientId      Int
+  kind           InsuranceKind
+  medicalType    String?
+  enrollRegion   String?
+  reimburseNote  String?
+  insurer        String?
+  productType    String?
+  policyNo       String?
+  coverageAmount String?
+  coverageScope  String?
+  deductible     String?
+  effectiveDate  DateTime?
+  expiryDate     DateTime?
+  notes          String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  patient        Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  attachments    Attachment[]
+
+  @@index([patientId])
+}
+
+enum InsuranceKind {
+  MEDICAL
+  COMMERCIAL
+}
+
+// ---------- 附件（方案 A：只通过外键挂载到 exam / procedure / insurance 之一）----------
+
+model Attachment {
+  id          Int       @id @default(autoincrement())
+  fileName    String
+  filePath    String
+  mimeType    String?
+  sizeBytes   Int?
+  uploadedAt  DateTime  @default(now())
+
+  examId      Int?
+  exam        Exam?     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  procedureId Int?
+  procedure   Procedure? @relation(fields: [procedureId], references: [id], onDelete: Cascade)
+  insuranceId Int?
+  insurance   Insurance? @relation(fields: [insuranceId], references: [id], onDelete: Cascade)
+
+  @@index([examId])
+  @@index([procedureId])
+  @@index([insuranceId])
+}
