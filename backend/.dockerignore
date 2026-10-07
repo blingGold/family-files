@@ -1,4 +1,5 @@
 # 后端 Docker 构建上下文排除项（避免把依赖/数据/密钥打进镜像）
+# 注意：docker-entrypoint.sh 是 Dockerfile 的 COPY 源，不能排除！
 node_modules
 dist
 .env
@@ -11,4 +12,3 @@ uploads
 *.log
 npm-debug.log*
 Dockerfile
-docker-entrypoint.sh

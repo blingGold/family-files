@@ -1,36 +1,44 @@
-# 家庭病历档案管理系统 - Docker Compose 编排
-# 用法：
-#   首次部署:  cp .env.example .env  → 填好密钥 →  docker compose up -d --build
-#   版本升级:  git pull → docker compose build → docker compose up -d（数据在 volume 中自动保留）
-#   数据位置:  docker volume ls（dbdata / uploads），重建容器/升级镜像均不丢失
-name: family-files
-
+# 家庭病历档案管理系统 - Docker Compose（极空间/通用版）
+# 用法（极空间）：把本 zip 解压后，整个 family-files 文件夹上传到极空间；
+#   在 Docker → Compose/项目 → 新建项目 → 用【选择文件】选中本文件（family-files/docker-compose.yml）
+#   极空间会以本文件所在目录为项目根，backend/frontend 子目录即构建上下文。
+# 部署前替换下面 3 个 CHANGE_ME 值：
+#   1. JWT_SECRET            → 任意长随机字符串（建议更换）
+#   2. OCR_API_KEY           → 你的 DeepSeek API Key（sk- 开头，病历图片识别用）
+#   3. SEED_ADMIN_PASSWORD   → 初始管理员密码（登录账号固定为 admin）
 services:
   backend:
     build: ./backend
-    image: family-files-backend:${TAG:-latest}
+    image: family-files-backend:latest
     restart: unless-stopped
-    env_file: .env
     environment:
-      # 数据固定写入卷，与镜像生命周期解耦
+      # 数据固定写入项目目录下 data/ 文件夹，升级镜像/重建容器不丢数据
       DATABASE_URL: "file:/data/db/dev.db"
       UPLOAD_DIR: "/data/uploads"
+      JWT_SECRET: "CHANGE_ME_JWT_SECRET"
+      JWT_EXPIRES_IN: "7d"
+      PORT: "3000"
+      LEAD_DAYS: "30"
+      OCR_API_BASE: "https://api.deepseek.com"
+      OCR_API_KEY: "CHANGE_ME_OCR_API_KEY"
+      OCR_MODEL: "deepseek-chat"
+      SEED_ADMIN_PASSWORD: "CHANGE_ME_ADMIN_PASSWORD"
     volumes:
-      - dbdata:/data/db
-      - uploads:/data/uploads
+      - ./data/db:/data/db
+      - ./data/uploads:/data/uploads
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 20s
+      start_period: 30s
 
   frontend:
     build: ./frontend
-    image: family-files-frontend:${TAG:-latest}
+    image: family-files-frontend:latest
     restart: unless-stopped
     ports:
-      - "${WEB_PORT:-8080}:80"
+      - "8080:80"
     depends_on:
       backend:
         condition: service_healthy
@@ -39,9 +47,3 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-
-volumes:
-  # 数据库卷：SQLite 文件（首次为空库，migrate deploy 自动建表）
-  dbdata:
-  # 附件卷：上传的病历图片等
-  uploads:
