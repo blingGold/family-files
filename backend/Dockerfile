@@ -12,12 +12,16 @@ FROM docker.m.daocloud.io/library/node:22-bookworm-slim AS builder
 
 WORKDIR /build
 
-# 先装依赖（利用层缓存；npm 走国内镜像避免超时）
+# 先装依赖（利用层缓存；npm 走国内镜像 + 加固超时）
 COPY package.json package-lock.json ./
-RUN npm config set registry https://registry.npmmirror.com && npm ci
+RUN npm config set registry https://registry.npmmirror.com \
+    && npm config set fetch-timeout 600000 \
+    && npm config set fetch-retries 5 \
+    && npm ci --no-audit --no-fund
 
-# 再拷源码并构建
+# 再拷源码并构建（Prisma 引擎下载走国内镜像，避免无声卡死）
 COPY . .
+ENV PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma
 RUN npx prisma generate
 RUN npm run build
 
