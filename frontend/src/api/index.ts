@@ -18,6 +18,8 @@ export const api = {
     client.get(`/conditions/${conditionId}/timeline`).then((r) => r.data),
   updateCondition: (id: number, data: any) =>
     client.put(`/conditions/${id}`, data).then((r) => r.data),
+  deleteCondition: (id: number) =>
+    client.delete(`/conditions/${id}`).then((r) => r.data),
 
   createEncounter: (conditionId: number, data: any) =>
     client.post(`/conditions/${conditionId}/encounters`, data).then((r) => r.data),
@@ -25,6 +27,8 @@ export const api = {
     client.get(`/encounters/${id}`).then((r) => r.data),
   updateEncounter: (id: number, data: any) =>
     client.put(`/encounters/${id}`, data).then((r) => r.data),
+  deleteEncounter: (id: number) =>
+    client.delete(`/encounters/${id}`).then((r) => r.data),
   createFollowUp: (conditionId: number, data: any) =>
     client.post(`/conditions/${conditionId}/followups`, data).then((r) => r.data),
 

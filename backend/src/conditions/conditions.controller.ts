@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
 import { ConditionsService } from './conditions.service';
 import { CreateConditionDto, UpdateConditionDto } from './dto';
 import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
@@ -41,5 +41,10 @@ export class ConditionsController {
     @Body() dto: UpdateConditionDto,
   ) {
     return this.conditions.update(user, Number(id), dto);
+  }
+
+  @Delete('conditions/:id')
+  remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.conditions.softDelete(user, Number(id));
   }
 }

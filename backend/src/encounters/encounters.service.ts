@@ -12,7 +12,7 @@ export class EncountersService {
   ) {}
 
   async create(user: AuthUser, conditionId: number, dto: CreateEncounterDto) {
-    const condition = await this.prisma.condition.findUnique({ where: { id: conditionId } });
+    const condition = await this.prisma.condition.findFirst({ where: { id: conditionId, deletedAt: null } });
     if (!condition) throw new NotFoundException('疾病不存在');
     await this.access.assertCanAccess(user, condition.patientId);
 
@@ -115,7 +115,7 @@ export class EncountersService {
   }
 
   async update(user: AuthUser, id: number, dto: UpdateEncounterDto) {
-    const e = await this.prisma.encounter.findUnique({ where: { id } });
+    const e = await this.prisma.encounter.findFirst({ where: { id, deletedAt: null } });
     if (!e) throw new NotFoundException('就诊不存在');
     await this.access.assertCanAccess(user, e.patientId);
 
@@ -165,8 +165,8 @@ export class EncountersService {
   }
 
   async get(user: AuthUser, id: number) {
-    const e = await this.prisma.encounter.findUnique({
-      where: { id },
+    const e = await this.prisma.encounter.findFirst({
+      where: { id, deletedAt: null },
       include: {
         exams: { include: { attachments: true } },
         medications: true,
@@ -176,5 +176,15 @@ export class EncountersService {
     if (!e) throw new NotFoundException('就诊不存在');
     await this.access.assertCanAccess(user, e.patientId);
     return e;
+  }
+
+  /** 软删除就诊记录（deletedAt 打标，不物理删除，可追溯） */
+  async softDelete(user: AuthUser, id: number) {
+    await this.get(user, id); // 校验存在 + 权限
+    await this.prisma.encounter.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+    return { id, deleted: true };
   }
 }

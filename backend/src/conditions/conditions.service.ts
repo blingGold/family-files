@@ -14,20 +14,30 @@ export class ConditionsService {
   async listForPatient(user: AuthUser, patientId: number) {
     await this.access.assertCanAccess(user, patientId);
     return this.prisma.condition.findMany({
-      where: { patientId },
+      where: { patientId, deletedAt: null },
       orderBy: { updatedAt: 'desc' },
       include: {
-        encounters: { orderBy: { encounterDate: 'desc' }, take: 1 },
+        encounters: { where: { deletedAt: null }, orderBy: { encounterDate: 'desc' }, take: 1 },
         followUps: { where: { status: 'PENDING' }, orderBy: { dueDate: 'asc' }, take: 1 },
       },
     });
   }
 
   async detail(user: AuthUser, id: number) {
-    const c = await this.prisma.condition.findUnique({ where: { id } });
+    const c = await this.prisma.condition.findFirst({ where: { id, deletedAt: null } });
     if (!c) throw new NotFoundException('疾病不存在');
     await this.access.assertCanAccess(user, c.patientId);
     return c;
+  }
+
+  /** 软删除疾病（deletedAt 打标，不物理删除；复查/就诊数据保留，可追溯） */
+  async softDelete(user: AuthUser, id: number) {
+    await this.detail(user, id); // 校验存在 + 权限
+    await this.prisma.condition.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+    return { id, deleted: true };
   }
 
   async create(user: AuthUser, patientId: number, dto: CreateConditionDto) {
@@ -72,13 +82,13 @@ export class ConditionsService {
 
   /** 疾病时间轴：就诊 + 复查合并按日期倒序 */
   async timeline(user: AuthUser, conditionId: number) {
-    const c = await this.prisma.condition.findUnique({ where: { id: conditionId } });
+    const c = await this.prisma.condition.findFirst({ where: { id: conditionId, deletedAt: null } });
     if (!c) throw new NotFoundException('疾病不存在');
     await this.access.assertCanAccess(user, c.patientId);
 
     const [encounters, followUps] = await Promise.all([
       this.prisma.encounter.findMany({
-        where: { conditionId },
+        where: { conditionId, deletedAt: null },
         orderBy: { encounterDate: 'desc' },
         include: {
           exams: { include: { attachments: true } },

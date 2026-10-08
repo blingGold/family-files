@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
 import { EncountersService } from './encounters.service';
 import { CreateEncounterDto, UpdateEncounterDto } from './dto';
 import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
@@ -28,5 +28,10 @@ export class EncountersController {
     @Body() dto: UpdateEncounterDto,
   ) {
     return this.encounters.update(user, Number(id), dto);
+  }
+
+  @Delete('encounters/:id')
+  remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.encounters.softDelete(user, Number(id));
   }
 }

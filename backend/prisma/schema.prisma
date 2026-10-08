@@ -83,6 +83,7 @@ model Condition {
   examSuggest    String? // 检查建议
   examResult     String? // 检查结果
   medication     String? // 用药建议
+  deletedAt      DateTime? // 软删除标记（null = 正常）
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -114,6 +115,7 @@ model Encounter {
   diagnosis      String?
   advice         String?
   notes          String?
+  deletedAt      DateTime? // 软删除标记（null = 正常）
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

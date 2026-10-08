@@ -32,9 +32,11 @@ export default function UserAdminPage() {
     <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh', background: '#f4f5f7' }}>
       <NavBar onBack={() => nav(-1)}>用户管理</NavBar>
       <div style={{ padding: 16 }}>
-        <Button block color="primary" onClick={() => Dialog.confirm({
-          content: '新建用户功能待补充，可直接在数据库中添加',
-        })}>
+        <Button block color="primary" onClick={() => {
+          Dialog.confirm({
+            content: '新建用户功能待补充，可直接在数据库中添加',
+          });
+        }}>
           + 新建用户
         </Button>
 
@@ -58,20 +60,22 @@ export default function UserAdminPage() {
                   <Button
                     size="small"
                     style={{ color: '#d97b7b' }}
-                    onClick={() => Dialog.confirm({
-                      title: '删除账号及数据',
-                      content: `确定删除账号「${u.username}」？将同时清除该账号的全部权限关联数据，此操作不可恢复。`,
-                      confirmText: '确认删除',
-                      onConfirm: async () => {
-                        try {
-                          await api.deleteUser(u.id);
-                          Toast.show('已删除');
-                          qc.invalidateQueries({ queryKey: ['users'] });
-                        } catch (e: any) {
-                          Toast.show(e?.response?.data?.message || '删除失败');
-                        }
-                      },
-                    })}
+                    onClick={() => {
+                      Dialog.confirm({
+                        title: '删除账号及数据',
+                        content: `确定删除账号「${u.username}」？将同时清除该账号的全部权限关联数据，此操作不可恢复。`,
+                        confirmText: '确认删除',
+                        onConfirm: async () => {
+                          try {
+                            await api.deleteUser(u.id);
+                            Toast.show('已删除');
+                            qc.invalidateQueries({ queryKey: ['users'] });
+                          } catch (e: any) {
+                            Toast.show(e?.response?.data?.message || '删除失败');
+                          }
+                        },
+                      });
+                    }}
                   >删除</Button>
                 </div>
               </div>

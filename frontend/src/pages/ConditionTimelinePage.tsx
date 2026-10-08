@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
-import { NavBar, DatePicker, Checkbox } from 'antd-mobile';
+import { NavBar, DatePicker, Checkbox, Dialog } from 'antd-mobile';
 import { useRef, useState } from 'react';
 import { api } from '../api';
 
@@ -240,7 +240,33 @@ export default function ConditionTimelinePage() {
 
   return (
     <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh', background: '#f4f5f7' }}>
-      <NavBar onBack={() => nav(-1)}>
+      <NavBar
+        onBack={() => nav(-1)}
+        right={
+          condition && (
+            <span
+              onClick={() => {
+                Dialog.confirm({
+                  title: '删除疾病',
+                  content: `确定删除「${condition.name}」吗？\n\n删除后该疾病将从列表隐藏，其就诊记录、复查计划一并隐藏（数据保留，可恢复）。此操作可逆，但请确认无误会。`,
+                  confirmText: '确认删除',
+                  cancelText: '再想想',
+                  onConfirm: async () => {
+                    try {
+                      await api.deleteCondition(Number(id));
+                      qc.invalidateQueries();
+                      nav(-1);
+                    } catch (e: any) {
+                      alert(e?.response?.data?.message || '删除失败');
+                    }
+                  },
+                });
+              }}
+              style={{ fontSize: 14, color: '#d97b7b' }}
+            >删除</span>
+          )
+        }
+      >
         {condition?.name || '疾病详情'}
       </NavBar>
       {condition?.aliases && (
@@ -311,6 +337,29 @@ export default function ConditionTimelinePage() {
                   {n.data.medications?.map((m: any) => (
                     <div key={m.id} style={{ marginTop: 4, fontSize: 12, color: '#4a5568' }}>{m.name} {m.dosage || ''} {m.frequency || ''}</div>
                   ))}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
+                    <button
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        Dialog.confirm({
+                          title: '删除就诊记录',
+                          content: `确定删除 ${new Date(n.data.encounterDate).toLocaleDateString('zh-CN')}${n.data.hospital ? ' · ' + n.data.hospital : ''} 这条就诊记录吗？\n\n删除后从时间轴隐藏（数据保留，可恢复）。`,
+                          confirmText: '确认删除',
+                          cancelText: '再想想',
+                          onConfirm: async () => {
+                            try {
+                              await api.deleteEncounter(n.data.id);
+                              qc.invalidateQueries({ queryKey: ['timeline', id] });
+                              qc.invalidateQueries();
+                            } catch (e: any) {
+                              alert(e?.response?.data?.message || '删除失败');
+                            }
+                          },
+                        });
+                      }}
+                      style={{ fontSize: 12, color: '#d97b7b', border: 'none', background: 'none', padding: '4px 8px' }}
+                    >删除</button>
+                  </div>
                 </div>
               ) : (
                 <div style={{ background: '#fff', borderRadius: 12, padding: 12, marginTop: 6, border: '0.5px solid #e5e7ec' }}>

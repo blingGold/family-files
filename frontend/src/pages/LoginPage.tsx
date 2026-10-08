@@ -32,8 +32,8 @@ export default function LoginPage() {
           <Form.Item name="username" label="用户名" rules={[{ required: true }]}>
             <Input placeholder="用户名" />
           </Form.Item>
-          <Form.Item name="password" label="密码" type="password" rules={[{ required: true, min: 6 }]}>
-            <Input placeholder="密码" />
+          <Form.Item name="password" label="密码" rules={[{ required: true, min: 6 }]}>
+            <Input type="password" placeholder="密码" />
           </Form.Item>
           <Button block type="submit" color="primary" loading={loading} style={{ marginTop: 24 }}>
             登录
