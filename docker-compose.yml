@@ -28,10 +28,11 @@ services:
       - ./data/uploads:/data/uploads
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
+      # ARM 芯片冷启动较慢：放宽启动窗口与重试，避免健康检查误判
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
 
   frontend:
     build: ./frontend
