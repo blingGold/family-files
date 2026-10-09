@@ -32,17 +32,19 @@ export class ConditionsService {
 
   /** 软删除疾病（deletedAt 打标，不物理删除；复查/就诊数据保留，可追溯） */
   async softDelete(user: AuthUser, id: number) {
-    await this.detail(user, id); // 校验存在 + 权限
+    const c = await this.detail(user, id); // 校验存在 + 权限
     await this.prisma.condition.update({
       where: { id },
       data: { deletedAt: new Date() },
     });
+    // 疾病删除后从病人当前用药中移除该疾病条目
+    await this.syncMedications(c.patientId, id);
     return { id, deleted: true };
   }
 
   async create(user: AuthUser, patientId: number, dto: CreateConditionDto) {
     await this.access.assertCanAccess(user, patientId);
-    return this.prisma.condition.create({
+    const c = await this.prisma.condition.create({
       data: {
         patientId,
         name: dto.name,
@@ -58,11 +60,14 @@ export class ConditionsService {
         medication: dto.medication,
       },
     });
+    // 疾病新增后自动同步病人当前用药（取该疾病最新就诊用药）
+    await this.syncMedications(patientId, c.id);
+    return c;
   }
 
   async update(user: AuthUser, id: number, dto: UpdateConditionDto) {
     const c = await this.detail(user, id);
-    return this.prisma.condition.update({
+    const updated = await this.prisma.condition.update({
       where: { id },
       data: {
         name: dto.name,
@@ -77,6 +82,50 @@ export class ConditionsService {
         examResult: dto.examResult,
         medication: dto.medication,
       },
+    });
+    // 疾病编辑后自动同步病人当前用药
+    await this.syncMedications(c.patientId, id);
+    return updated;
+  }
+
+  /**
+   * 同步病人"当前用药"：取该疾病最新就诊记录的用药，
+   * 覆盖该疾病在 patient.currentMedications 中的条目（无药则移除该疾病条目）。
+   * timeRange：按用药起止推断——两端都有=时间段；只有起始=「xx 起」；都没有=长期。
+   */
+  private async syncMedications(patientId: number, conditionId: number) {
+    const latest = await this.prisma.encounter.findFirst({
+      where: { conditionId, deletedAt: null },
+      orderBy: { encounterDate: 'desc' },
+      include: { medications: true },
+    });
+    const patient = await this.prisma.patient.findUnique({ where: { id: patientId } });
+    const current: any[] = Array.isArray(patient?.currentMedications)
+      ? patient.currentMedications
+      : [];
+    const rest = current.filter((m: any) => m.diseaseId !== conditionId);
+    let entries: any[] = [];
+    if (latest && latest.medications.length) {
+      entries = latest.medications.map((m: any) => {
+        const sd = m.startDate ? m.startDate.toISOString().slice(0, 10) : '';
+        const ed = m.endDate ? m.endDate.toISOString().slice(0, 10) : '';
+        let timeRange = '长期';
+        if (sd && ed) timeRange = `${sd} ~ ${ed}`;
+        else if (ed) timeRange = `~ ${ed} 止`;
+        else if (sd) timeRange = `${sd} 起`;
+        return {
+          diseaseId: conditionId,
+          name: m.name,
+          dosage: m.dosage || '',
+          frequency: m.frequency || '',
+          timeRange,
+          note: m.purpose || '',
+        };
+      });
+    }
+    await this.prisma.patient.update({
+      where: { id: patientId },
+      data: { currentMedications: [...rest, ...entries] },
     });
   }
 

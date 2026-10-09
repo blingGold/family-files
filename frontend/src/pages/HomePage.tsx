@@ -1,4 +1,4 @@
-import { TabBar } from 'antd-mobile';
+import { TabBar, Dialog } from 'antd-mobile';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AppOutline,
@@ -83,6 +83,9 @@ export default function HomePage() {
   const [fuDate, setFuDate] = useState('');
   const [fuRecurring, setFuRecurring] = useState(false);
   const [fuInterval, setFuInterval] = useState(3);
+  // 当前用药手动编辑弹窗
+  const [showMedEdit, setShowMedEdit] = useState(false);
+  const [medRows, setMedRows] = useState<any[]>([]);
 
   const patientsQ = useQuery({ queryKey: ['patients'], queryFn: api.patients });
   const patients = patientsQ.data || [];
@@ -105,10 +108,39 @@ export default function HomePage() {
     (c.followUps || []).map((f: any) => ({ ...f, conditionName: c.name, conditionId: c.id })),
   ).sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
   const insurances = patient?.insurances || [];
+  const meds: any[] = Array.isArray(patient?.currentMedications) ? patient.currentMedications : [];
 
   const closeNewPatient = () => {
     setShowNewPatient(false);
     setNp({});
+  };
+
+  const openMedEdit = () => {
+    setMedRows((Array.isArray(patient?.currentMedications) ? patient.currentMedications : []).map((m: any) => {
+      const isPeriod = m.timeRange && m.timeRange !== '长期';
+      const parts = isPeriod ? m.timeRange.split(' ~ ') : [];
+      return {
+        name: m.name || '', dosage: m.dosage || '', frequency: m.frequency || '',
+        rangeType: isPeriod ? '期间' : '长期', start: parts[0] || '', end: parts[1] || '',
+      };
+    }));
+    setShowMedEdit(true);
+  };
+
+  const saveMedEdit = async () => {
+    const list = medRows.map((r) => ({
+      name: r.name,
+      dosage: r.dosage,
+      frequency: r.frequency,
+      timeRange: r.rangeType === '期间' ? [r.start, r.end].filter(Boolean).join(' ~ ') || '长期' : '长期',
+    }));
+    try {
+      await api.updatePatientMedications(patientId!, list);
+      setShowMedEdit(false);
+      qc.invalidateQueries({ queryKey: ['patient', patientId] });
+    } catch (e: any) {
+      alert(e?.response?.data?.message || '保存失败');
+    }
   };
 
   const closeNewCondition = () => {
@@ -229,11 +261,38 @@ export default function HomePage() {
               <UserOutline style={{ fontSize: 26 }} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 17, fontWeight: 600, color: '#2b2f36' }}>
-                {patient?.name || '未选择'}
-                <span style={{ fontSize: 12, color: '#7a828c', fontWeight: 400, marginLeft: 8 }}>
-                  {patient?.gender === 'MALE' ? '男' : patient?.gender === 'FEMALE' ? '女' : ''}
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: 17, fontWeight: 600, color: '#2b2f36' }}>
+                  {patient?.name || '未选择'}
+                  <span style={{ fontSize: 12, color: '#7a828c', fontWeight: 400, marginLeft: 8 }}>
+                    {patient?.gender === 'MALE' ? '男' : patient?.gender === 'FEMALE' ? '女' : ''}
+                  </span>
+                </div>
+                {patient && (
+                  <span
+                    onClick={() => {
+                      Dialog.confirm({
+                        title: '删除成员',
+                        content: `确定删除「${patient.name}」吗？\n\n删除后该成员及其疾病、就诊、复查记录全部隐藏（数据保留，可恢复）。此操作可逆，但请确认无误会。`,
+                        confirmText: '确认删除',
+                        cancelText: '再想想',
+                        onConfirm: async () => {
+                          try {
+                            await api.deletePatient(patient.id);
+                            setPatientId(null);
+                            qc.invalidateQueries({ queryKey: ['patients'] });
+                            qc.invalidateQueries({ queryKey: ['patient'] });
+                            qc.invalidateQueries({ queryKey: ['badge'] });
+                            qc.invalidateQueries();
+                          } catch (e: any) {
+                            alert(e?.response?.data?.message || '删除失败');
+                          }
+                        },
+                      });
+                    }}
+                    style={{ fontSize: 12, color: '#d97b7b', cursor: 'pointer', flexShrink: 0, marginLeft: 8 }}
+                  >删除</span>
+                )}
               </div>
               <div style={{ fontSize: 12, color: '#7a828c', marginTop: 4 }}>
                 {calcAge(patient?.birthDate) || '年龄未知'} · {patient?.heightCm ? `${patient.heightCm} cm` : '身高—'} · {patient?.weightKg ? `${patient.weightKg} kg` : '体重—'}
@@ -250,6 +309,26 @@ export default function HomePage() {
               ))}
             </div>
           )}
+          <div style={{ marginTop: 14, borderTop: '0.5px solid #eef0f3', paddingTop: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#2b2f36' }}>当前用药</span>
+              <span onClick={openMedEdit} style={{ fontSize: 12, color: '#3d6b94', cursor: 'pointer' }}>编辑</span>
+            </div>
+            {meds.length === 0 ? (
+              <div style={{ fontSize: 12, color: '#7a828c', marginTop: 8 }}>暂无用药记录（新增疾病/就诊时自动带出，可手动编辑）</div>
+            ) : (
+              meds.map((m: any, i: number) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: '#4a5568', flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 500, color: '#2b2f36' }}>{m.name}</span>
+                  {m.dosage && <span>{m.dosage}</span>}
+                  {m.frequency && <span>{m.frequency}</span>}
+                  <span style={{ background: 'rgba(123,168,140,0.14)', color: '#5a8069', padding: '1px 8px', borderRadius: 999, fontSize: 11 }}>
+                    {m.timeRange || '长期'}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
         </div>
 
         <div style={{ fontSize: 15, fontWeight: 600, color: '#2b2f36', margin: '20px 0 10px' }}>即将复查</div>
@@ -352,6 +431,49 @@ export default function HomePage() {
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button onClick={closeNewPatient} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e5e7ec', background: '#fff', fontSize: 14 }}>取消</button>
               <button onClick={submitNewPatient} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#5b8db8', color: '#fff', fontSize: 14 }}>保存</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showMedEdit && (
+        <div onClick={() => setShowMedEdit(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'flex-end' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', width: '100%', maxWidth: 480, margin: '0 auto', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '80vh', overflow: 'auto' }}>
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>当前用药</div>
+            <div style={{ fontSize: 12, color: '#7a828c', marginBottom: 14 }}>新增/编辑疾病时自动同步，此处可手动修改</div>
+            {medRows.map((r: any, i: number) => (
+              <div key={i} style={{ border: '0.5px solid #e5e7ec', borderRadius: 10, padding: 12, marginBottom: 10 }}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input style={{ ...inputStyle, flex: 2 }} value={r.name} onChange={(e) => setMedRows(medRows.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="药名（如：阿司匹林）" />
+                  <input style={{ ...inputStyle, flex: 1 }} value={r.dosage} onChange={(e) => setMedRows(medRows.map((x, j) => j === i ? { ...x, dosage: e.target.value } : x))} placeholder="剂量（如：100mg）" />
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <input style={{ ...inputStyle, flex: 1 }} value={r.frequency} onChange={(e) => setMedRows(medRows.map((x, j) => j === i ? { ...x, frequency: e.target.value } : x))} placeholder="频次（如：每日一次）" />
+                  <select style={inputStyle} value={r.rangeType} onChange={(e) => setMedRows(medRows.map((x, j) => j === i ? { ...x, rangeType: e.target.value } : x))}>
+                    <option value="长期">长期</option>
+                    <option value="期间">时间段</option>
+                  </select>
+                </div>
+                {r.rangeType === '期间' && (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: '#7a828c' }}>起</span>
+                    <input style={{ ...inputStyle, flex: 1 }} type="date" value={r.start} onChange={(e) => setMedRows(medRows.map((x, j) => j === i ? { ...x, start: e.target.value } : x))} />
+                    <span style={{ fontSize: 12, color: '#7a828c' }}>止</span>
+                    <input style={{ ...inputStyle, flex: 1 }} type="date" value={r.end} onChange={(e) => setMedRows(medRows.map((x, j) => j === i ? { ...x, end: e.target.value } : x))} />
+                  </div>
+                )}
+                <div style={{ textAlign: 'right', marginTop: 8 }}>
+                  <button onClick={() => setMedRows(medRows.filter((_, j) => j !== i))} style={{ fontSize: 12, color: '#d97b7b', border: 'none', background: 'none', padding: '4px 8px' }}>删除此行</button>
+                </div>
+              </div>
+            ))}
+            <button
+              onClick={() => setMedRows([...medRows, { name: '', dosage: '', frequency: '', rangeType: '长期', start: '', end: '' }])}
+              style={{ width: '100%', padding: 12, borderRadius: 8, border: '1px dashed #b7c4d0', background: '#f6f7f9', fontSize: 14, color: '#3d6b94' }}
+            >+ 添加用药</button>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button onClick={() => setShowMedEdit(false)} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e5e7ec', background: '#fff', fontSize: 14 }}>取消</button>
+              <button onClick={saveMedEdit} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#5b8db8', color: '#fff', fontSize: 14 }}>保存</button>
             </div>
           </div>
         </div>

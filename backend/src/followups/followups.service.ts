@@ -22,8 +22,9 @@ export class FollowUpsService {
     const where: any = {
       status: 'PENDING',
       dueDate: { lte: horizon },
-      // 疾病已软删除的复查不再提醒
+      // 疾病已软删除、病人已软删除的复查不再提醒
       condition: { deletedAt: null },
+      patient: { deletedAt: null },
     };
     if (scope === 'patient' && patientId) {
       await this.access.assertCanAccess(user, patientId);

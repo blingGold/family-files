@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
 import { PatientsService } from './patients.service';
 import { CreatePatientDto, UpdatePatientDto } from './dto';
 import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
@@ -25,5 +25,20 @@ export class PatientsController {
   @Put(':id')
   update(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: UpdatePatientDto) {
     return this.patients.update(user, Number(id), dto);
+  }
+
+  @Delete(':id')
+  remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.patients.softDelete(user, Number(id));
+  }
+
+  /** 手动编辑病人当前用药列表 */
+  @Put(':id/medications')
+  updateMedications(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body('medications') medications: any[],
+  ) {
+    return this.patients.updateMedications(user, Number(id), medications);
   }
 }

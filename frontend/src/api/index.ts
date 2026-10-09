@@ -9,6 +9,9 @@ export const api = {
   patient: (id: number) => client.get(`/patients/${id}`).then((r) => r.data),
   createPatient: (data: any) => client.post('/patients', data).then((r) => r.data),
   updatePatient: (id: number, data: any) => client.put(`/patients/${id}`, data).then((r) => r.data),
+  deletePatient: (id: number) => client.delete(`/patients/${id}`).then((r) => r.data),
+  updatePatientMedications: (id: number, medications: any[]) =>
+    client.put(`/patients/${id}/medications`, { medications }).then((r) => r.data),
 
   conditions: (patientId: number) =>
     client.get(`/patients/${patientId}/conditions`).then((r) => r.data),

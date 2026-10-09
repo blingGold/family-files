@@ -14,7 +14,7 @@ export class PatientsService {
   async list(user: AuthUser) {
     const ids = await this.access.visiblePatientIds(user);
     const patients = await this.prisma.patient.findMany({
-      where: ids === null ? {} : { id: { in: ids } },
+      where: ids === null ? { deletedAt: null } : { id: { in: ids }, deletedAt: null },
       orderBy: { id: 'asc' },
       include: {
         conditions: { include: { followUps: true } },
@@ -26,8 +26,8 @@ export class PatientsService {
 
   async detail(user: AuthUser, id: number) {
     await this.access.assertCanAccess(user, id);
-    const p = await this.prisma.patient.findUnique({
-      where: { id },
+    const p = await this.prisma.patient.findFirst({
+      where: { id, deletedAt: null },
       include: {
         conditions: {
           orderBy: { updatedAt: 'desc' },
@@ -55,6 +55,33 @@ export class PatientsService {
   async update(user: AuthUser, id: number, dto: UpdatePatientDto) {
     await this.access.assertCanAccess(user, id);
     return this.prisma.patient.update({ where: { id }, data: this.toData(dto) });
+  }
+
+  /** 软删除病人（deletedAt 打标；疾病/就诊/复查数据保留可追溯） */
+  async softDelete(user: AuthUser, id: number) {
+    await this.access.assertCanAccess(user, id);
+    await this.prisma.patient.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+    return { id, deleted: true };
+  }
+
+  /** 手动编辑病人当前用药列表（覆盖式保存） */
+  async updateMedications(user: AuthUser, id: number, medications: any[]) {
+    await this.access.assertCanAccess(user, id);
+    const list = (medications || []).map((m: any) => ({
+      diseaseId: m.diseaseId ?? null,
+      name: m.name || '',
+      dosage: m.dosage || '',
+      frequency: m.frequency || '',
+      timeRange: m.timeRange || '长期',
+      note: m.note || '',
+    })).filter((m: any) => m.name);
+    return this.prisma.patient.update({
+      where: { id },
+      data: { currentMedications: list },
+    });
   }
 
   private toData(dto: CreatePatientDto) {

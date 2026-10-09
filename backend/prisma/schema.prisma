@@ -53,6 +53,9 @@ model Patient {
   familyHistory String?
   chronicTags   String?
   notes         String?
+  // 当前用药（[{diseaseId?, name, dosage, frequency, timeRange}]，疾病增改/就诊更新时自动同步，可手动编辑）
+  currentMedications Json?
+  deletedAt      DateTime? // 软删除标记（null = 正常）
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
