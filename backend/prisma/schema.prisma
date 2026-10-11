@@ -219,6 +219,14 @@ enum FollowUpStatus {
 
 // ---------- 保险 ----------
 
+// ---------- 系统设置（密钥等持久化到数据库，升级/覆盖 zip 不丢）----------
+
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 model Insurance {
   id             Int            @id @default(autoincrement())
   patientId      Int

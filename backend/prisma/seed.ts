@@ -4,7 +4,11 @@ import * as bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'admin123';
+  // 占位符（CHANGE_ME）视为未配置，兜底 admin123，避免把占位符当密码
+  const raw = process.env.SEED_ADMIN_PASSWORD || 'admin123';
+  const placeholder =
+    raw.includes('CHANGE_ME') || raw.toLowerCase().includes('change-me');
+  const adminPassword = placeholder ? 'admin123' : raw;
   const passwordHash = await bcrypt.hash(adminPassword, 10);
 
   const admin = await prisma.user.upsert({
