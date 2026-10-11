@@ -1,4 +1,10 @@
-家庭病历档案管理系统 - 极空间部署步骤（v8.2）
+家庭病历档案管理系统 - 极空间部署步骤（v9）
+============================================
+【重要】升级方式的正确做法（务必读）
+  不要"把整个项目文件夹删除后替换 zip"——那样 data/（数据库+上传文件+密钥）会一起被删！
+  正确：只替换代码文件（backend、frontend、docker-compose.yml、deploy 等），
+        保留 data/ 文件夹。这样数据库、上传图片、密钥全部自动保留。
+  若已经删掉了：用备份的 data/ 拷回即可（没有备份就丢数据了，务必先备份再操作）。
 ============================================
 【重要】数据安全铁律
   1. 所有数据（数据库 + 上传图片）都在项目目录的 data/ 文件夹里；
@@ -19,11 +25,16 @@
       family-files/docker-compose.yml   （就是刚才上传的文件夹根目录下的那个文件）
   这样极空间会把 family-files 当作项目根，构建时才能找到 backend/frontend 子目录。
 
-【第 3 步】替换 3 个密钥（在导入后的配置文本里查找替换）
-    CHANGE_ME_JWT_SECRET        → 任意长随机字符串（不换也能跑，建议换）
-    CHANGE_ME_OCR_API_KEY       → 你的 DeepSeek API Key（sk-开头）
-    CHANGE_ME_ADMIN_PASSWORD    → 初始管理员密码（记下来，登录用）
-  保存并启动。
+【第 3 步】填写密钥（只填这一次！以后升级不用再改）
+  用极空间文件管理，打开项目目录下的：data/backend.env
+  把里面 3 个 CHANGE_ME 替换成真实值并保存：
+    JWT_SECRET             → 任意长随机字符串（建议换，可用 openssl rand -hex 32 生成）
+    OCR_API_KEY            → 你的 DeepSeek API Key（sk-开头）
+    SEED_ADMIN_PASSWORD    → 初始管理员密码（记下来，登录用）
+  （从旧版本升级：打开你旧 docker-compose.yml 的 environment 段，
+    把你之前填过的 3 个值抄到 data/backend.env 里即可）
+  然后回到 Compose 项目导入 docker-compose.yml 启动。
+  ※ 密钥存在 data/ 里，升级/重建容器都不会丢，不用再改。
 
 【第 4 步】等待构建
   首次构建约 5-10 分钟（自动拉取国内加速镜像 → 装依赖 → 编译）。
@@ -34,15 +45,18 @@
   登录：admin / 你设置的密码
 
 【数据与升级】
-  - 数据存在项目目录的 data/db、data/uploads（首次启动自动创建）
+  - 数据存在项目目录的 data/ 文件夹里：data/db（数据库）、data/uploads（上传图片）、
+    data/backend.env（密钥，只填一次）
   - 升级流程（强制顺序）：
       ① 备份：文件管理 → 项目目录 → 把整个 data/ 文件夹【复制】到项目目录外
         （如 /SATA存储11/docker/data_backup_日期/），确认复制完成
-      ② 替换：新版本 zip 解压后，替换 backend、frontend 等代码文件（保留 data/）
+      ② 替换：新版本 zip 解压 → 只替换 backend、frontend、docker-compose.yml 等代码文件，
+        【保留 data/ 文件夹】（不要删整个文件夹！）
       ③ 重建：Compose 项目 → 重新构建 → 勾选"使用最新版本镜像构建"
         （弹窗提示"映射目录以外的文件将被删除"，data/ 在映射目录内会保留）
       ④ 验证：文件管理确认 data/db/dev.db 存在且大小正常；登录系统查看数据
       ⑤ 若 data/ 意外丢失：把备份的 data/ 文件夹复制回项目目录 → 重启容器
+  - 密钥：只改 data/backend.env 一次；升级不丢、不用重填
   - 备份 = 复制 data 文件夹；恢复 = 拷回后重启
 
 【常见问题】
@@ -50,5 +64,5 @@
     或 backend 文件夹没有上传完整
   - 构建拉镜像超时 → 新版已内置国内加速源（docker.m.daocloud.io）；仍超时可在
     极空间 Docker 设置 → 代理 里配置代理后重试
-  - 页面打不开 → 看 backend 容器日志（密钥错误 / OCR key 无效）
+  - 页面打不开 → 看 backend 容器日志；常见原因：data/backend.env 没填好（密钥错误 / OCR key 无效）或 data/ 路径与 compose 不一致
   - 端口占用 → 把 ports 的 "18080:80" 改成其他端口（如 "28080:80"）
