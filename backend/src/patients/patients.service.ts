@@ -17,7 +17,8 @@ export class PatientsService {
       where: ids === null ? { deletedAt: null } : { id: { in: ids }, deletedAt: null },
       orderBy: { id: 'asc' },
       include: {
-        conditions: { include: { followUps: true } },
+        // 软删疾病不出现在病人列表（复查等随之隐藏）
+        conditions: { where: { deletedAt: null }, include: { followUps: true } },
         insurances: true,
       },
     });
@@ -30,9 +31,10 @@ export class PatientsService {
       where: { id, deletedAt: null },
       include: {
         conditions: {
+          where: { deletedAt: null },
           orderBy: { updatedAt: 'desc' },
           include: {
-            encounters: { orderBy: { encounterDate: 'desc' }, take: 1 },
+            encounters: { where: { deletedAt: null }, orderBy: { encounterDate: 'desc' }, take: 1 },
             followUps: { where: { status: 'PENDING' }, orderBy: { dueDate: 'asc' } },
           },
         },
