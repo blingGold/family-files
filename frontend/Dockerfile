@@ -5,7 +5,11 @@ FROM docker.m.daocloud.io/library/node:22-bookworm-slim AS builder
 WORKDIR /build
 
 COPY package.json package-lock.json ./
-RUN npm config set registry https://registry.npmmirror.com && npm ci
+RUN npm config set registry https://registry.npmmirror.com \
+    && npm config set fetch-timeout 120000 \
+    && npm config set fetch-retries 5 \
+    && echo "==> npm ci 开始（下载中，请观察 http 请求行）" \
+    && npm ci --no-audit --no-fund --loglevel=http
 
 COPY . .
 RUN npm run build

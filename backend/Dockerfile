@@ -12,12 +12,15 @@ FROM docker.m.daocloud.io/library/node:22-bookworm-slim AS builder
 
 WORKDIR /build
 
-# 先装依赖（利用层缓存；npm 走国内镜像 + 加固超时）
+# 先装依赖（利用层缓存；npm 走国内镜像 + 快速超时重试 + 实时进度）
+# 注意：BuildKit 默认缓冲 RUN 输出，npm ci 期间界面看似"卡住"属正常；
+# --loglevel=http 可实时看到下载请求，判断是否在动
 COPY package.json package-lock.json ./
 RUN npm config set registry https://registry.npmmirror.com \
-    && npm config set fetch-timeout 600000 \
+    && npm config set fetch-timeout 120000 \
     && npm config set fetch-retries 5 \
-    && npm ci --no-audit --no-fund
+    && echo "==> npm ci 开始（下载中，请观察 http 请求行）" \
+    && npm ci --no-audit --no-fund --loglevel=http
 
 # 再拷源码并构建（Prisma 引擎下载走国内镜像，避免无声卡死）
 COPY . .
