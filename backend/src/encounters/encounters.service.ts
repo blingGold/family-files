@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccessService } from '../common/access.service';
+import { ConditionsService } from '../conditions/conditions.service';
 import { CreateEncounterDto, UpdateEncounterDto } from './dto';
 import type { AuthUser } from '../auth/current-user.decorator';
 
@@ -9,6 +10,7 @@ export class EncountersService {
   constructor(
     private prisma: PrismaService,
     private access: AccessService,
+    private conditions: ConditionsService,
   ) {}
 
   async create(user: AuthUser, conditionId: number, dto: CreateEncounterDto) {
@@ -111,6 +113,10 @@ export class EncountersService {
       }
 
       return encounter;
+    }).then(async (encounter) => {
+      // 就诊（含用药）创建后同步病人"当前用药"
+      await this.conditions.syncConditionMedications(condition.patientId, conditionId);
+      return encounter;
     });
   }
 
@@ -161,6 +167,10 @@ export class EncountersService {
         },
         include: { exams: true, medications: true, procedures: true },
       });
+    }).then(async (encounter) => {
+      // 就诊（含用药）更新后同步病人"当前用药"
+      await this.conditions.syncConditionMedications(e.patientId, e.conditionId);
+      return encounter;
     });
   }
 

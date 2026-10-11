@@ -38,7 +38,7 @@ export class ConditionsService {
       data: { deletedAt: new Date() },
     });
     // 疾病删除后从病人当前用药中移除该疾病条目
-    await this.syncMedications(c.patientId, id);
+    await this.syncConditionMedications(c.patientId, id);
     return { id, deleted: true };
   }
 
@@ -61,7 +61,7 @@ export class ConditionsService {
       },
     });
     // 疾病新增后自动同步病人当前用药（取该疾病最新就诊用药）
-    await this.syncMedications(patientId, c.id);
+    await this.syncConditionMedications(patientId, c.id);
     return c;
   }
 
@@ -84,7 +84,7 @@ export class ConditionsService {
       },
     });
     // 疾病编辑后自动同步病人当前用药
-    await this.syncMedications(c.patientId, id);
+    await this.syncConditionMedications(c.patientId, id);
     return updated;
   }
 
@@ -92,8 +92,9 @@ export class ConditionsService {
    * 同步病人"当前用药"：取该疾病最新就诊记录的用药，
    * 覆盖该疾病在 patient.currentMedications 中的条目（无药则移除该疾病条目）。
    * timeRange：按用药起止推断——两端都有=时间段；只有起始=「xx 起」；都没有=长期。
+   * 公开：就诊创建/更新/复查完成自动建档后也会调用。
    */
-  private async syncMedications(patientId: number, conditionId: number) {
+  async syncConditionMedications(patientId: number, conditionId: number) {
     const latest = await this.prisma.encounter.findFirst({
       where: { conditionId, deletedAt: null },
       orderBy: { encounterDate: 'desc' },

@@ -34,6 +34,13 @@ export default function NewEncounterPage() {
 
   const [encounterNotes, setEncounterNotes] = useState('');
 
+  // 用药有效期（本次开具药物的整体有效期：长期 / 时间段）
+  const [medRangeType, setMedRangeType] = useState<'long' | 'period'>('long');
+  const [medStart, setMedStart] = useState<Date | null>(null);
+  const [medEnd, setMedEnd] = useState<Date | null>(null);
+  const [medStartPicker, setMedStartPicker] = useState(false);
+  const [medEndPicker, setMedEndPicker] = useState(false);
+
   // 编辑模式：加载已有就诊记录预填
   useEffect(() => {
     if (!isEdit) return;
@@ -53,6 +60,14 @@ export default function NewEncounterPage() {
           examResult: (e.exams || []).map((x: any) => `${x.name}${x.conclusion ? '：' + x.conclusion : ''}${x.resultValue ? '，' + x.resultValue : ''}`).join('\n'),
           medication: (e.medications || []).map((m: any) => `${m.name}${m.dosage ? ' ' + m.dosage : ''}${m.frequency ? ' ' + m.frequency : ''}`).join('\n'),
         });
+        const fm = (e.medications || [])[0];
+        if (fm?.startDate || fm?.endDate) {
+          setMedRangeType('period');
+          setMedStart(fm.startDate ? new Date(fm.startDate) : null);
+          setMedEnd(fm.endDate ? new Date(fm.endDate) : null);
+        } else {
+          setMedRangeType('long');
+        }
       } catch (e: any) {
         alert(e?.response?.data?.message || '加载失败');
         nav(-1);
@@ -98,7 +113,12 @@ export default function NewEncounterPage() {
     setSaving(true);
     try {
       const exams = form.examResult ? form.examResult.split('\n').filter((x: string) => x.trim()).map((x: string) => ({ name: '辅助检查', conclusion: x.trim() })) : [];
-      const medications = form.medication ? form.medication.split('\n').filter((x: string) => x.trim()).map((x: string) => ({ name: '用药', dosage: x.trim() })) : [];
+      const medBase: any = { name: '用药' };
+      if (medRangeType === 'period') {
+        medBase.startDate = medStart ? medStart.toISOString() : undefined;
+        medBase.endDate = medEnd ? medEnd.toISOString() : undefined;
+      }
+      const medications = form.medication ? form.medication.split('\n').filter((x: string) => x.trim()).map((x: string) => ({ ...medBase, dosage: x.trim() })) : [];
       const base: any = {
         encounterDate: date.toISOString(),
         hospital: form.hospital,
@@ -196,6 +216,18 @@ export default function NewEncounterPage() {
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 13, color: '#7a828c', marginBottom: 4 }}>用药建议（每行一条，保存为用药记录）</div>
           <textarea style={{ ...inputStyle, minHeight: 60 }} value={form.medication || ''} onChange={(e) => setForm({ ...form, medication: e.target.value })} placeholder="如：硝苯地平缓释片 30mg 每日一次（OCR 自动填入）" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, color: '#7a828c' }}>有效期：</span>
+            <span onClick={() => setMedRangeType('long')} style={{ fontSize: 12, padding: '4px 12px', borderRadius: 999, cursor: 'pointer', background: medRangeType === 'long' ? '#5b8db8' : '#eef1f5', color: medRangeType === 'long' ? '#fff' : '#4a5568' }}>长期</span>
+            <span onClick={() => setMedRangeType('period')} style={{ fontSize: 12, padding: '4px 12px', borderRadius: 999, cursor: 'pointer', background: medRangeType === 'period' ? '#5b8db8' : '#eef1f5', color: medRangeType === 'period' ? '#fff' : '#4a5568' }}>时间段</span>
+            {medRangeType === 'period' && (
+              <span style={{ fontSize: 12, color: '#4a5568' }}>
+                <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setMedStartPicker(true)}>{medStart ? medStart.toLocaleDateString('zh-CN') : '开始日期'}</span>
+                {' ~ '}
+                <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setMedEndPicker(true)}>{medEnd ? medEnd.toLocaleDateString('zh-CN') : '结束日期'}</span>
+              </span>
+            )}
+          </div>
         </div>
 
         {!isEdit && (
@@ -238,6 +270,12 @@ export default function NewEncounterPage() {
       </div>
       <DatePicker visible={pickerVisible} value={date} onClose={() => setPickerVisible(false)} onConfirm={(d) => { setDate(d); setPickerVisible(false); }} />
       <DatePicker visible={fuPickerVisible} value={fuDate} onClose={() => setFuPickerVisible(false)} onConfirm={(d) => { setFuDate(d); setFuPickerVisible(false); }} />
+      {medStartPicker && (
+        <DatePicker visible={medStartPicker} value={medStart || new Date()} onClose={() => setMedStartPicker(false)} onConfirm={(d) => { setMedStart(d); setMedStartPicker(false); }} />
+      )}
+      {medEndPicker && (
+        <DatePicker visible={medEndPicker} value={medEnd || new Date()} onClose={() => setMedEndPicker(false)} onConfirm={(d) => { setMedEnd(d); setMedEndPicker(false); }} />
+      )}
     </div>
   );
 }

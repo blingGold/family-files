@@ -1,6 +1,6 @@
 # ============================================================
 # 家庭病历档案管理系统 - Docker Compose（极空间/通用版）
-# 部署包版本：v12（2026-10-12）
+# 部署包版本：v12.1（2026-10-12）
 #   版本内容：人员详情页（编辑个人信息+删除两次确认）、当前用药、软删除、健康检查加固、
 #             端口 18080:80、
 #             密钥自动持久化到数据库（data/db）：整体覆盖 zip 升级后自动找回真实密钥；
@@ -26,7 +26,7 @@
 services:
   backend:
     build: ./backend
-    image: family-files-backend:v12
+    image: family-files-backend:v12.1
     restart: unless-stopped
     # 密钥统一从 data/backend.env 读取（data/ 是保留目录，升级/重建不丢，
     # 密钥只填一次；其余非敏感配置仍写在 environment 里）
@@ -54,7 +54,7 @@ services:
 
   frontend:
     build: ./frontend
-    image: family-files-frontend:v12
+    image: family-files-frontend:v12.1
     restart: unless-stopped
     ports:
       - "18080:80"
