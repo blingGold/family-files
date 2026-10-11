@@ -270,28 +270,9 @@ export default function HomePage() {
                 </div>
                 {patient && (
                   <span
-                    onClick={() => {
-                      Dialog.confirm({
-                        title: '删除成员',
-                        content: `确定删除「${patient.name}」吗？\n\n删除后该成员及其疾病、就诊、复查记录全部隐藏（数据保留，可恢复）。此操作可逆，但请确认无误会。`,
-                        confirmText: '确认删除',
-                        cancelText: '再想想',
-                        onConfirm: async () => {
-                          try {
-                            await api.deletePatient(patient.id);
-                            setPatientId(null);
-                            qc.invalidateQueries({ queryKey: ['patients'] });
-                            qc.invalidateQueries({ queryKey: ['patient'] });
-                            qc.invalidateQueries({ queryKey: ['badge'] });
-                            qc.invalidateQueries();
-                          } catch (e: any) {
-                            alert(e?.response?.data?.message || '删除失败');
-                          }
-                        },
-                      });
-                    }}
-                    style={{ fontSize: 12, color: '#d97b7b', cursor: 'pointer', flexShrink: 0, marginLeft: 8 }}
-                  >删除</span>
+                    onClick={() => nav(`/patients/${patient.id}`)}
+                    style={{ fontSize: 12, color: '#3d6b94', cursor: 'pointer', flexShrink: 0, marginLeft: 8 }}
+                  >编辑资料</span>
                 )}
               </div>
               <div style={{ fontSize: 12, color: '#7a828c', marginTop: 4 }}>
