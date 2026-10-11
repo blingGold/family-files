@@ -11,6 +11,7 @@ export default function UserAdminPage() {
   const patientsQ = useQuery({ queryKey: ['patients'], queryFn: api.patients });
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
   const [checked, setChecked] = useState<number[]>([]);
+  const [savingAccess, setSavingAccess] = useState(false);
 
   const users = usersQ.data || [];
   const patients = patientsQ.data || [];
@@ -21,11 +22,16 @@ export default function UserAdminPage() {
   };
 
   const saveAccess = async () => {
-    if (!editingUserId) return;
-    await api.setUserAccess(editingUserId, checked);
-    Toast.show('已保存');
-    setEditingUserId(null);
-    qc.invalidateQueries({ queryKey: ['users'] });
+    if (!editingUserId || savingAccess) return;
+    setSavingAccess(true);
+    try {
+      await api.setUserAccess(editingUserId, checked);
+      Toast.show('已保存');
+      setEditingUserId(null);
+      qc.invalidateQueries({ queryKey: ['users'] });
+    } finally {
+      setSavingAccess(false);
+    }
   };
 
   return (
@@ -108,7 +114,7 @@ export default function UserAdminPage() {
             ))}
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <Button block onClick={() => setEditingUserId(null)}>取消</Button>
-              <Button block color="primary" onClick={saveAccess}>保存</Button>
+              <Button block color="primary" onClick={saveAccess} loading={savingAccess}>保存</Button>
             </div>
           </div>
         </div>

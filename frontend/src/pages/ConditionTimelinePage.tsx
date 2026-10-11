@@ -73,6 +73,7 @@ export default function ConditionTimelinePage() {
   const [ocrText, setOcrText] = useState('');
   const [editingFu, setEditingFu] = useState<any>(null);
   const [ocrExtra, setOcrExtra] = useState('');
+  const [savingFu, setSavingFu] = useState(false);
   const ocrInputRef = useRef<HTMLInputElement>(null);
 
   // 导出
@@ -210,6 +211,8 @@ export default function ConditionTimelinePage() {
   };
 
   const addFollowUp = async () => {
+    if (savingFu) return;
+    setSavingFu(true);
     try {
       if (editingFu) {
         await api.updateFollowup(editingFu.id, {
@@ -235,6 +238,8 @@ export default function ConditionTimelinePage() {
       qc.invalidateQueries();
     } catch (e: any) {
       alert(e?.response?.data?.message || '保存失败');
+    } finally {
+      setSavingFu(false);
     }
   };
 
@@ -521,7 +526,7 @@ export default function ConditionTimelinePage() {
             )}
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button onClick={closeFuModal} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e5e7ec', background: '#fff', fontSize: 14 }}>取消</button>
-              <button onClick={addFollowUp} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#5b8db8', color: '#fff', fontSize: 14 }}>保存</button>
+              <button onClick={addFollowUp} disabled={savingFu} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: savingFu ? '#9dbcd4' : '#5b8db8', color: '#fff', fontSize: 14 }}>{savingFu ? '保存中…' : '保存'}</button>
             </div>
           </div>
         </div>

@@ -86,6 +86,10 @@ export default function HomePage() {
   // 当前用药手动编辑弹窗
   const [showMedEdit, setShowMedEdit] = useState(false);
   const [medRows, setMedRows] = useState<any[]>([]);
+  // 防重复提交
+  const [savingMed, setSavingMed] = useState(false);
+  const [savingPatient, setSavingPatient] = useState(false);
+  const [savingCondition, setSavingCondition] = useState(false);
 
   const patientsQ = useQuery({ queryKey: ['patients'], queryFn: api.patients });
   const patients = patientsQ.data || [];
@@ -128,6 +132,8 @@ export default function HomePage() {
   };
 
   const saveMedEdit = async () => {
+    if (savingMed) return;
+    setSavingMed(true);
     const list = medRows.map((r) => ({
       name: r.name,
       dosage: r.dosage,
@@ -140,6 +146,8 @@ export default function HomePage() {
       qc.invalidateQueries({ queryKey: ['patient', patientId] });
     } catch (e: any) {
       alert(e?.response?.data?.message || '保存失败');
+    } finally {
+      setSavingMed(false);
     }
   };
 
@@ -151,11 +159,19 @@ export default function HomePage() {
   };
 
   const submitNewPatient = async () => {
+    if (savingPatient) return;
     if (!np.name) return alert('请输入姓名');
-    const created = await api.createPatient(np);
-    setShowNewPatient(false); setNp({});
-    qc.invalidateQueries({ queryKey: ['patients'] });
-    setPatientId(created.id);
+    setSavingPatient(true);
+    try {
+      const created = await api.createPatient(np);
+      setShowNewPatient(false); setNp({});
+      qc.invalidateQueries({ queryKey: ['patients'] });
+      setPatientId(created.id);
+    } catch (e: any) {
+      alert(e?.response?.data?.message || '保存失败');
+    } finally {
+      setSavingPatient(false);
+    }
   };
   const handleOcr = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -208,8 +224,11 @@ export default function HomePage() {
   };
 
   const submitNewCondition = async () => {
+    if (savingCondition) return;
     const name = nc.name === CUSTOM_DISEASE ? (nc.customName || '').trim() : nc.name;
     if (!name) return alert('请输入疾病名称');
+    setSavingCondition(true);
+    try {
     const created = await api.createCondition(patientId!, { status: 'FOLLOWING', ...nc, name });
     // OCR/手动填了就诊信息 → 自动创建就诊记录
     if (nc.visitDate || nc.hospital || nc.doctor || nc.advice || nc.examResult || nc.medication) {
@@ -237,6 +256,11 @@ export default function HomePage() {
     closeNewCondition();
     qc.invalidateQueries({ queryKey: ['patient', patientId] });
     qc.invalidateQueries();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || '保存失败');
+    } finally {
+      setSavingCondition(false);
+    }
   };
 
   if (patientsQ.isLoading) return <div style={{ padding: 40, textAlign: 'center' }}>加载中…</div>;
@@ -257,7 +281,7 @@ export default function HomePage() {
       <div style={{ padding: '8px 16px 24px' }}>
         <div style={{ background: '#fff', borderRadius: 16, padding: 16, marginBottom: 20, border: '0.5px solid #e5e7ec' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 52, height: 52, borderRadius: 16, background: '#5b8db8', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <div onClick={() => patient && nav(`/patients/${patient.id}`)} style={{ width: 52, height: 52, borderRadius: 16, background: '#5b8db8', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
               <UserOutline style={{ fontSize: 26 }} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -411,7 +435,7 @@ export default function HomePage() {
             <Field label="慢性病标签"><div style={{ fontSize: 12, color: '#7a828c', padding: '8px 0' }}>标签将根据已录入的疾病自动生成</div></Field>
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button onClick={closeNewPatient} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e5e7ec', background: '#fff', fontSize: 14 }}>取消</button>
-              <button onClick={submitNewPatient} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#5b8db8', color: '#fff', fontSize: 14 }}>保存</button>
+              <button onClick={submitNewPatient} disabled={savingPatient} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: savingPatient ? '#9dbcd4' : '#5b8db8', color: '#fff', fontSize: 14 }}>{savingPatient ? '保存中…' : '保存'}</button>
             </div>
           </div>
         </div>
@@ -454,7 +478,7 @@ export default function HomePage() {
             >+ 添加用药</button>
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button onClick={() => setShowMedEdit(false)} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e5e7ec', background: '#fff', fontSize: 14 }}>取消</button>
-              <button onClick={saveMedEdit} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#5b8db8', color: '#fff', fontSize: 14 }}>保存</button>
+              <button onClick={saveMedEdit} disabled={savingMed} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: savingMed ? '#9dbcd4' : '#5b8db8', color: '#fff', fontSize: 14 }}>{savingMed ? '保存中…' : '保存'}</button>
             </div>
           </div>
         </div>
@@ -559,7 +583,7 @@ export default function HomePage() {
 
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button onClick={closeNewCondition} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e5e7ec', background: '#fff', fontSize: 14 }}>取消</button>
-              <button onClick={submitNewCondition} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#5b8db8', color: '#fff', fontSize: 14 }}>保存</button>
+              <button onClick={submitNewCondition} disabled={savingCondition} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: savingCondition ? '#9dbcd4' : '#5b8db8', color: '#fff', fontSize: 14 }}>{savingCondition ? '保存中…' : '保存'}</button>
             </div>
           </div>
         </div>

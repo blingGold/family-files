@@ -94,6 +94,7 @@ export default function NewEncounterPage() {
   };
 
   const onSubmit = async () => {
+    if (saving) return;
     setSaving(true);
     try {
       const exams = form.examResult ? form.examResult.split('\n').filter((x: string) => x.trim()).map((x: string) => ({ name: '辅助检查', conclusion: x.trim() })) : [];

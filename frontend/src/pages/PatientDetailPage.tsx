@@ -23,6 +23,8 @@ export default function PatientDetailPage() {
   const nav = useNavigate();
   const qc = useQueryClient();
   const [form, setForm] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const q = useQuery({
     queryKey: ['patient', Number(id)],
@@ -51,6 +53,8 @@ export default function PatientDetailPage() {
   if (q.isError || !patient) return <div style={{ padding: 40, textAlign: 'center' }}>人员不存在</div>;
 
   const save = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       await api.updatePatient(patient.id, {
         ...form,
@@ -62,6 +66,8 @@ export default function PatientDetailPage() {
       qc.invalidateQueries({ queryKey: ['patients'] });
     } catch (e: any) {
       alert(e?.response?.data?.message || '保存失败');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -79,6 +85,8 @@ export default function PatientDetailPage() {
           confirmText: '确认删除',
           cancelText: '再想想',
           onConfirm: async () => {
+            if (deleting) return;
+            setDeleting(true);
             try {
               await api.deletePatient(patient.id);
               Toast.show('已删除');
@@ -89,6 +97,8 @@ export default function PatientDetailPage() {
               nav('/');
             } catch (e: any) {
               alert(e?.response?.data?.message || '删除失败');
+            } finally {
+              setDeleting(false);
             }
           },
         });
@@ -139,13 +149,13 @@ export default function PatientDetailPage() {
           <Field label="备注">
             <textarea style={{ ...inputStyle, minHeight: 60 }} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="其他说明" />
           </Field>
-          <button onClick={save} style={{ width: '100%', padding: 13, borderRadius: 10, border: 'none', background: '#5b8db8', color: '#fff', fontSize: 15 }}>保存修改</button>
+          <button onClick={save} disabled={saving} style={{ width: '100%', padding: 13, borderRadius: 10, border: 'none', background: saving ? '#9dbcd4' : '#5b8db8', color: '#fff', fontSize: 15 }}>{saving ? '保存中…' : '保存修改'}</button>
         </div>
 
         <div style={{ background: '#fff', borderRadius: 16, padding: 16, border: '0.5px solid #e5e7ec' }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#2b2f36', marginBottom: 4 }}>危险操作</div>
           <div style={{ fontSize: 12, color: '#7a828c', marginBottom: 12 }}>删除后该成员及其疾病、就诊、复查记录全部隐藏（数据保留，可恢复）</div>
-          <button onClick={removePatient} style={{ width: '100%', padding: 13, borderRadius: 10, border: '0.5px solid #e8b9b9', background: '#fdf3f3', color: '#c26b5a', fontSize: 15 }}>删除人员</button>
+          <button onClick={removePatient} disabled={deleting} style={{ width: '100%', padding: 13, borderRadius: 10, border: '0.5px solid #e8b9b9', background: '#fdf3f3', color: '#c26b5a', fontSize: 15 }}>{deleting ? '删除中…' : '删除人员'}</button>
         </div>
       </div>
     </div>

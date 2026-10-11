@@ -26,6 +26,7 @@ export default function FollowUpsPage() {
   const [editRecurring, setEditRecurring] = useState(false);
   const [editInterval, setEditInterval] = useState(3);
   const [editPicker, setEditPicker] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const list = listQ.data || [];
   const now = new Date();
@@ -37,13 +38,19 @@ export default function FollowUpsPage() {
   });
 
   const complete = async (id: number) => {
-    const r = await api.completeFollowup(id, {});
-    qc.invalidateQueries({ queryKey: ['followups'] });
-    qc.invalidateQueries({ queryKey: ['badge'] });
-    qc.invalidateQueries();
-    // 复查完成自动生成的就诊记录 → 跳转到编辑页，提醒补全
-    if (r?.completedEncounterId) {
-      nav(`/encounters/${r.completedEncounterId}/edit`);
+    if (busy) return;
+    setBusy(true);
+    try {
+      const r = await api.completeFollowup(id, {});
+      qc.invalidateQueries({ queryKey: ['followups'] });
+      qc.invalidateQueries({ queryKey: ['badge'] });
+      qc.invalidateQueries();
+      // 复查完成自动生成的就诊记录 → 跳转到编辑页，提醒补全
+      if (r?.completedEncounterId) {
+        nav(`/encounters/${r.completedEncounterId}/edit`);
+      }
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -58,23 +65,34 @@ export default function FollowUpsPage() {
     setEditFu(null); setEditItems(''); setEditRecurring(false); setEditInterval(3);
   };
   const saveEdit = async () => {
-    if (!editFu) return;
-    await api.updateFollowup(editFu.id, {
-      items: editItems || '复查',
-      dueDate: editDate.toISOString(),
-      recurring: editRecurring,
-      intervalMonths: editRecurring ? editInterval : undefined,
-    });
-    closeEdit();
-    qc.invalidateQueries({ queryKey: ['followups'] });
-    qc.invalidateQueries({ queryKey: ['badge'] });
-    qc.invalidateQueries();
+    if (!editFu || busy) return;
+    setBusy(true);
+    try {
+      await api.updateFollowup(editFu.id, {
+        items: editItems || '复查',
+        dueDate: editDate.toISOString(),
+        recurring: editRecurring,
+        intervalMonths: editRecurring ? editInterval : undefined,
+      });
+      closeEdit();
+      qc.invalidateQueries({ queryKey: ['followups'] });
+      qc.invalidateQueries({ queryKey: ['badge'] });
+      qc.invalidateQueries();
+    } finally {
+      setBusy(false);
+    }
   };
   const removeFu = async (id: number) => {
-    await api.deleteFollowup(id);
-    qc.invalidateQueries({ queryKey: ['followups'] });
-    qc.invalidateQueries({ queryKey: ['badge'] });
-    qc.invalidateQueries();
+    if (busy) return;
+    setBusy(true);
+    try {
+      await api.deleteFollowup(id);
+      qc.invalidateQueries({ queryKey: ['followups'] });
+      qc.invalidateQueries({ queryKey: ['badge'] });
+      qc.invalidateQueries();
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -168,7 +186,7 @@ export default function FollowUpsPage() {
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={closeEdit} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e5e7ec', background: '#fff', fontSize: 14 }}>取消</button>
-              <button onClick={saveEdit} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#5b8db8', color: '#fff', fontSize: 14 }}>保存</button>
+              <button onClick={saveEdit} disabled={busy} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: busy ? '#9dbcd4' : '#5b8db8', color: '#fff', fontSize: 14 }}>{busy ? '保存中…' : '保存'}</button>
             </div>
           </div>
         </div>
