@@ -70,19 +70,36 @@ export class PatientsService {
   }
 
   /** 手动编辑病人当前用药列表（覆盖式保存） */
-  async updateMedications(user: AuthUser, id: number, medications: any[]) {
+  async updateMedications(user: AuthUser, id: number, dto: any) {
     await this.access.assertCanAccess(user, id);
-    const list = (medications || []).map((m: any) => ({
+    const patient = await this.prisma.patient.findUnique({ where: { id } });
+    const current: any[] = Array.isArray(patient?.currentMedications) ? patient.currentMedications : [];
+    const remove = new Set((dto?.removeDiseaseIds || []).map(Number));
+    // 保留：未删除疾病的绑定记录 + 全部手动记录
+    const kept = current.filter((m: any) => !(!m.manual && m.diseaseId != null && remove.has(m.diseaseId)));
+    const keptBinding = kept.filter((m: any) => !m.manual);
+    // 手动记录全量替换
+    const manual = (dto?.manual || []).map((m: any) => ({
+      id: m.id || `m-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       diseaseId: m.diseaseId ?? null,
-      name: m.name || '',
-      dosage: m.dosage || '',
-      frequency: m.frequency || '',
-      timeRange: m.timeRange || '长期',
-      note: m.note || '',
-    })).filter((m: any) => m.name);
+      diseaseName: m.diseaseName || '',
+      sourceEncounterId: null,
+      manual: true,
+      text: m.text || m.name || '',
+      startDate: m.startDate || null,
+      endDate: m.endDate || null,
+      timeRange:
+        m.startDate && m.endDate
+          ? `${m.startDate} ~ ${m.endDate}`
+          : m.endDate
+            ? `~ ${m.endDate} 止`
+            : m.startDate
+              ? `${m.startDate} 起`
+              : '长期',
+    })).filter((m: any) => m.text);
     return this.prisma.patient.update({
       where: { id },
-      data: { currentMedications: list },
+      data: { currentMedications: [...keptBinding, ...manual] },
     });
   }
 

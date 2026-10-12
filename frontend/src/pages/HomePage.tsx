@@ -1,4 +1,4 @@
-import { TabBar, Dialog } from 'antd-mobile';
+import { TabBar, Dialog, DatePicker } from 'antd-mobile';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AppOutline,
@@ -80,7 +80,14 @@ export default function HomePage() {
   // 新增疾病时的首次复查安排
   const [fuOn, setFuOn] = useState(false);
   const [fuItems, setFuItems] = useState('');
-  const [fuDate, setFuDate] = useState('');
+  const [fuDate, setFuDate] = useState<Date | null>(null);
+  const [fuPicker, setFuPicker] = useState(false);
+  // 时间组件（统一 antd-mobile DatePicker 弹层交互）
+  const [npBirthPicker, setNpBirthPicker] = useState(false);
+  const [visitPicker, setVisitPicker] = useState(false);
+  const [discoverPicker, setDiscoverPicker] = useState(false);
+  // 用药编辑弹窗内日期选择
+  const [medDatePicker, setMedDatePicker] = useState<{ row: number; field: 'start' | 'end' } | null>(null);
   const [fuRecurring, setFuRecurring] = useState(false);
   const [fuInterval, setFuInterval] = useState(3);
   // 当前用药手动编辑弹窗
@@ -112,7 +119,10 @@ export default function HomePage() {
     (c.followUps || []).map((f: any) => ({ ...f, conditionName: c.name, conditionId: c.id })),
   ).sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
   const insurances = patient?.insurances || [];
-  const meds: any[] = Array.isArray(patient?.currentMedications) ? patient.currentMedications : [];
+  // 当前用药：自动过滤已失效（endDate 早于今天）的记录
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const meds: any[] = (Array.isArray(patient?.currentMedications) ? patient.currentMedications : [])
+    .filter((m: any) => !m.endDate || m.endDate >= todayStr);
 
   const closeNewPatient = () => {
     setShowNewPatient(false);
@@ -120,28 +130,33 @@ export default function HomePage() {
   };
 
   const openMedEdit = () => {
-    setMedRows((Array.isArray(patient?.currentMedications) ? patient.currentMedications : []).map((m: any) => {
-      const isPeriod = m.timeRange && m.timeRange !== '长期';
-      const parts = isPeriod ? m.timeRange.split(' ~ ') : [];
-      return {
-        name: m.name || '', dosage: m.dosage || '', frequency: m.frequency || '',
-        rangeType: isPeriod ? '期间' : '长期', start: parts[0] || '', end: parts[1] || '',
-      };
-    }));
+    const rows = (Array.isArray(patient?.currentMedications) ? patient.currentMedications : [])
+      .filter((m: any) => !m.endDate || m.endDate >= todayStr)
+      .map((m: any) => ({
+        id: m.id || '', diseaseId: m.diseaseId ?? null, sourceEncounterId: m.sourceEncounterId ?? null,
+        manual: !!m.manual, text: m.text || m.name || '',
+        startDate: m.startDate || null, endDate: m.endDate || null,
+        rangeType: (m.startDate || m.endDate) ? '期间' : '长期',
+        start: m.startDate || '', end: m.endDate || '',
+        removed: false,
+      }));
+    setMedRows(rows);
     setShowMedEdit(true);
   };
 
   const saveMedEdit = async () => {
     if (savingMed) return;
     setSavingMed(true);
-    const list = medRows.map((r) => ({
-      name: r.name,
-      dosage: r.dosage,
-      frequency: r.frequency,
-      timeRange: r.rangeType === '期间' ? [r.start, r.end].filter(Boolean).join(' ~ ') || '长期' : '长期',
+    // 手动记录：全量提交（含新增/修改/删除）；就诊绑定记录：标记移除的解除绑定
+    const manual = medRows.filter((r) => r.manual && !r.removed && r.text.trim()).map((r) => ({
+      id: r.id || undefined,
+      text: r.text.trim(),
+      startDate: r.rangeType === '期间' && r.start ? r.start : null,
+      endDate: r.rangeType === '期间' && r.end ? r.end : null,
     }));
+    const removeDiseaseIds = medRows.filter((r) => !r.manual && r.removed && r.diseaseId != null).map((r) => r.diseaseId);
     try {
-      await api.updatePatientMedications(patientId!, list);
+      await api.updatePatientMedications(patientId!, { manual, removeDiseaseIds });
       setShowMedEdit(false);
       qc.invalidateQueries({ queryKey: ['patient', patientId] });
     } catch (e: any) {
@@ -154,7 +169,7 @@ export default function HomePage() {
   const closeNewCondition = () => {
     setShowNewCondition(false);
     setNc({});
-    setFuOn(false); setFuItems(''); setFuDate(''); setFuRecurring(false);
+    setFuOn(false); setFuItems(''); setFuDate(null); setFuRecurring(false);
     setOcrText(''); setOcrMatched(null);
   };
 
@@ -247,7 +262,7 @@ export default function HomePage() {
     if (fuOn) {
       await api.createFollowUp(created.id, {
         patientId: patientId!,
-        dueDate: new Date(fuDate).toISOString(),
+        dueDate: fuDate ? fuDate.toISOString() : new Date(Date.now() + 30 * 86400000).toISOString(),
         items: fuItems || '首次复查',
         recurring: fuRecurring,
         intervalMonths: fuRecurring ? fuInterval : undefined,
@@ -323,13 +338,20 @@ export default function HomePage() {
               <div style={{ fontSize: 12, color: '#7a828c', marginTop: 8 }}>暂无用药记录（新增疾病/就诊时自动带出，可手动编辑）</div>
             ) : (
               meds.map((m: any, i: number) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12, color: '#4a5568', flexWrap: 'wrap' }}>
-                  <span style={{ fontWeight: 500, color: '#2b2f36' }}>{m.name}</span>
-                  {m.dosage && <span>{m.dosage}</span>}
-                  {m.frequency && <span>{m.frequency}</span>}
-                  <span style={{ background: 'rgba(123,168,140,0.14)', color: '#5a8069', padding: '1px 8px', borderRadius: 999, fontSize: 11 }}>
-                    {m.timeRange || '长期'}
-                  </span>
+                <div key={i} style={{ marginTop: 8, padding: '8px 10px', background: '#fafbfc', border: '0.5px solid #eef0f3', borderRadius: 8 }}>
+                  {(m.text || '').split('\n').filter(Boolean).map((line: string, j: number) => (
+                    <div key={j} style={{ fontSize: 12, color: '#4a5568', lineHeight: 1.7 }}>· {line}</div>
+                  ))}
+                  <div style={{ display: 'flex', gap: 6, marginTop: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ background: 'rgba(123,168,140,0.14)', color: '#5a8069', padding: '1px 8px', borderRadius: 999, fontSize: 11 }}>
+                      {m.timeRange || '长期'}
+                    </span>
+                    {m.manual ? (
+                      <span style={{ background: '#eef1f5', color: '#7a828c', padding: '1px 8px', borderRadius: 999, fontSize: 11 }}>手动</span>
+                    ) : (
+                      <span style={{ background: '#e8eef5', color: '#3d6b94', padding: '1px 8px', borderRadius: 999, fontSize: 11 }}>来自就诊{m.diseaseName ? '·' + m.diseaseName : ''}</span>
+                    )}
+                  </div>
                 </div>
               ))
             )}
@@ -425,7 +447,7 @@ export default function HomePage() {
                 <option value="">请选择</option><option value="MALE">男</option><option value="FEMALE">女</option>
               </select>
             </Field>
-            <Field label="出生日期"><input style={inputStyle} type="date" value={np.birthDate || ''} onChange={(e) => setNp({ ...np, birthDate: e.target.value })} /></Field>
+            <Field label="出生日期"><div style={inputStyle as any} onClick={() => setNpBirthPicker(true)}>{np.birthDate ? np.birthDate : '选择日期'}</div></Field>
             <div style={{ display: 'flex', gap: 8 }}>
               <div style={{ flex: 1 }}><Field label="身高 (cm)"><input style={inputStyle} inputMode="decimal" value={np.heightCm ?? ''} onChange={(e) => setNp({ ...np, heightCm: e.target.value === '' ? undefined : Number(e.target.value) })} placeholder="如：172" /></Field></div>
               <div style={{ flex: 1 }}><Field label="体重 (kg)"><input style={inputStyle} inputMode="decimal" value={np.weightKg ?? ''} onChange={(e) => setNp({ ...np, weightKg: e.target.value === '' ? undefined : Number(e.target.value) })} placeholder="如：70" /></Field></div>
@@ -447,35 +469,43 @@ export default function HomePage() {
             <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>当前用药</div>
             <div style={{ fontSize: 12, color: '#7a828c', marginBottom: 14 }}>新增/编辑疾病时自动同步，此处可手动修改</div>
             {medRows.map((r: any, i: number) => (
-              <div key={i} style={{ border: '0.5px solid #e5e7ec', borderRadius: 10, padding: 12, marginBottom: 10 }}>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input style={{ ...inputStyle, flex: 2 }} value={r.name} onChange={(e) => setMedRows(medRows.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="药名（如：阿司匹林）" />
-                  <input style={{ ...inputStyle, flex: 1 }} value={r.dosage} onChange={(e) => setMedRows(medRows.map((x, j) => j === i ? { ...x, dosage: e.target.value } : x))} placeholder="剂量（如：100mg）" />
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                  <input style={{ ...inputStyle, flex: 1 }} value={r.frequency} onChange={(e) => setMedRows(medRows.map((x, j) => j === i ? { ...x, frequency: e.target.value } : x))} placeholder="频次（如：每日一次）" />
-                  <select style={inputStyle} value={r.rangeType} onChange={(e) => setMedRows(medRows.map((x, j) => j === i ? { ...x, rangeType: e.target.value } : x))}>
-                    <option value="长期">长期</option>
-                    <option value="期间">时间段</option>
-                  </select>
-                </div>
-                {r.rangeType === '期间' && (
-                  <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
-                    <span style={{ fontSize: 12, color: '#7a828c' }}>起</span>
-                    <input style={{ ...inputStyle, flex: 1 }} type="date" value={r.start} onChange={(e) => setMedRows(medRows.map((x, j) => j === i ? { ...x, start: e.target.value } : x))} />
-                    <span style={{ fontSize: 12, color: '#7a828c' }}>止</span>
-                    <input style={{ ...inputStyle, flex: 1 }} type="date" value={r.end} onChange={(e) => setMedRows(medRows.map((x, j) => j === i ? { ...x, end: e.target.value } : x))} />
-                  </div>
+              <div key={i} style={{ border: r.removed ? '0.5px solid #e8b9b9' : '0.5px solid #e5e7ec', borderRadius: 10, padding: 12, marginBottom: 10, opacity: r.removed ? 0.6 : 1 }}>
+                {r.manual ? (
+                  <>
+                    <div style={{ fontSize: 12, color: '#7a828c', marginBottom: 6 }}>
+                      手动用药 {r.removed ? '（保存后删除）' : ''}
+                    </div>
+                    <textarea style={{ ...inputStyle, minHeight: 40 }} value={r.text} onChange={(e) => setMedRows(medRows.map((x, j) => j === i ? { ...x, text: e.target.value } : x))} placeholder="药名 剂量 频次，如：维生素D 400IU 每日一次" />
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 12, color: '#3d6b94', marginBottom: 6 }}>
+                      来自就诊{r.diseaseName ? '·' + r.diseaseName : ''} {r.removed ? '（保存后解除绑定，就诊记录不受影响）' : ''}
+                    </div>
+                    <div style={{ fontSize: 13, color: '#2b2f36', whiteSpace: 'pre-line' }}>{r.text || '暂无内容'}</div>
+                  </>
                 )}
+                <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 12, color: '#7a828c' }}>有效期：</span>
+                  <span onClick={() => setMedRows(medRows.map((x, j) => j === i ? { ...x, rangeType: '长期' } : x))} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 999, cursor: 'pointer', background: r.rangeType === '长期' ? '#5b8db8' : '#eef1f5', color: r.rangeType === '长期' ? '#fff' : '#4a5568' }}>长期</span>
+                  <span onClick={() => setMedRows(medRows.map((x, j) => j === i ? { ...x, rangeType: '期间' } : x))} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 999, cursor: 'pointer', background: r.rangeType === '期间' ? '#5b8db8' : '#eef1f5', color: r.rangeType === '期间' ? '#fff' : '#4a5568' }}>时间段</span>
+                  {r.rangeType === '期间' && (
+                    <span style={{ fontSize: 12, color: '#4a5568' }}>
+                      <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setMedDatePicker({ row: i, field: 'start' })}>{r.start || '开始日期'}</span>
+                      {' ~ '}
+                      <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setMedDatePicker({ row: i, field: 'end' })}>{r.end || '结束日期'}</span>
+                    </span>
+                  )}
+                </div>
                 <div style={{ textAlign: 'right', marginTop: 8 }}>
-                  <button onClick={() => setMedRows(medRows.filter((_, j) => j !== i))} style={{ fontSize: 12, color: '#d97b7b', border: 'none', background: 'none', padding: '4px 8px' }}>删除此行</button>
+                  <button onClick={() => setMedRows(medRows.map((x, j) => j === i ? { ...x, removed: !x.removed } : x))} style={{ fontSize: 12, color: '#d97b7b', border: 'none', background: 'none', padding: '4px 8px' }}>{r.removed ? '撤销' : (r.manual ? '删除' : '解除绑定')}</button>
                 </div>
               </div>
             ))}
             <button
-              onClick={() => setMedRows([...medRows, { name: '', dosage: '', frequency: '', rangeType: '长期', start: '', end: '' }])}
+              onClick={() => setMedRows([...medRows, { id: '', diseaseId: null, sourceEncounterId: null, manual: true, text: '', rangeType: '长期', start: '', end: '', removed: false }])}
               style={{ width: '100%', padding: 12, borderRadius: 8, border: '1px dashed #b7c4d0', background: '#f6f7f9', fontSize: 14, color: '#3d6b94' }}
-            >+ 添加用药</button>
+            >+ 添加手动用药（不与就诊记录关联）</button>
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button onClick={() => setShowMedEdit(false)} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e5e7ec', background: '#fff', fontSize: 14 }}>取消</button>
               <button onClick={saveMedEdit} disabled={savingMed} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: savingMed ? '#9dbcd4' : '#5b8db8', color: '#fff', fontSize: 14 }}>{savingMed ? '保存中…' : '保存'}</button>
@@ -534,7 +564,7 @@ export default function HomePage() {
               <Field label="疾病名称 *"><input style={inputStyle} value={nc.customName || ''} onChange={(e) => setNc({ ...nc, customName: e.target.value })} placeholder="输入疾病名称" /></Field>
             )}
             <Field label="其他称呼"><input style={inputStyle} value={nc.aliases || ''} onChange={(e) => setNc({ ...nc, aliases: e.target.value })} placeholder="选中疾病自动带出，可修改；逗号分隔" /></Field>
-            <Field label="就诊日期"><input style={inputStyle} type="date" value={nc.visitDate || ''} onChange={(e) => setNc({ ...nc, visitDate: e.target.value })} /></Field>
+            <Field label="就诊日期"><div style={inputStyle as any} onClick={() => setVisitPicker(true)}>{nc.visitDate ? nc.visitDate : '选择日期'}</div></Field>
             <Field label="医院"><input style={inputStyle} value={nc.hospital || ''} onChange={(e) => setNc({ ...nc, hospital: e.target.value })} placeholder="如：北京大学第三医院（OCR 自动填入）" /></Field>
             <Field label="医生"><input style={inputStyle} value={nc.doctor || ''} onChange={(e) => setNc({ ...nc, doctor: e.target.value })} placeholder="主治医生（手写签名需手动填）" /></Field>
             <Field label="状态">
@@ -543,7 +573,7 @@ export default function HomePage() {
                 <option value="CHRONIC">慢性</option><option value="CURED">已治愈</option>
               </select>
             </Field>
-            <Field label="发现日期"><input style={inputStyle} type="date" value={nc.discoveredDate || ''} onChange={(e) => setNc({ ...nc, discoveredDate: e.target.value })} /></Field>
+            <Field label="发现日期"><div style={inputStyle as any} onClick={() => setDiscoverPicker(true)}>{nc.discoveredDate ? nc.discoveredDate : '选择日期'}</div></Field>
             <Field label="备注"><textarea style={{ ...inputStyle, minHeight: 60 }} value={nc.notes || ''} onChange={(e) => setNc({ ...nc, notes: e.target.value })} /></Field>
             <Field label="医嘱"><textarea style={{ ...inputStyle, minHeight: 52 }} value={nc.advice || ''} onChange={(e) => setNc({ ...nc, advice: e.target.value })} placeholder="医生交代的注意事项（OCR 识别自动填入）" /></Field>
             <Field label="检查建议"><textarea style={{ ...inputStyle, minHeight: 52 }} value={nc.examSuggest || ''} onChange={(e) => setNc({ ...nc, examSuggest: e.target.value })} placeholder="建议做的检查（OCR 识别自动填入）" /></Field>
@@ -563,7 +593,7 @@ export default function HomePage() {
                   </div>
                   <div style={{ marginTop: 10 }}>
                     <div style={{ fontSize: 13, color: '#7a828c', marginBottom: 4 }}>提醒日期（自定义）</div>
-                    <input style={inputStyle} type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} />
+                    <div style={inputStyle as any} onClick={() => setFuPicker(true)}>{fuDate ? fuDate.toLocaleDateString('zh-CN') : '选择日期'}</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
                     <span style={{ fontSize: 13, color: '#2b2f36' }}>周期复查（每 N 个月提醒）</span>
@@ -599,6 +629,33 @@ export default function HomePage() {
           </TabBar>
         </div>
       </div>
+
+      {/* 统一时间组件：antd-mobile DatePicker 弹层 */}
+      {npBirthPicker && (
+        <DatePicker visible={npBirthPicker} value={np.birthDate ? new Date(np.birthDate) : new Date()} precision="day" onClose={() => setNpBirthPicker(false)} onConfirm={(d) => { setNp({ ...np, birthDate: d.toISOString().slice(0, 10) }); setNpBirthPicker(false); }} />
+      )}
+      {visitPicker && (
+        <DatePicker visible={visitPicker} value={nc.visitDate ? new Date(nc.visitDate) : new Date()} precision="day" onClose={() => setVisitPicker(false)} onConfirm={(d) => { setNc({ ...nc, visitDate: d.toISOString().slice(0, 10) }); setVisitPicker(false); }} />
+      )}
+      {discoverPicker && (
+        <DatePicker visible={discoverPicker} value={nc.discoveredDate ? new Date(nc.discoveredDate) : new Date()} precision="day" onClose={() => setDiscoverPicker(false)} onConfirm={(d) => { setNc({ ...nc, discoveredDate: d.toISOString().slice(0, 10) }); setDiscoverPicker(false); }} />
+      )}
+      {fuPicker && (
+        <DatePicker visible={fuPicker} value={fuDate || new Date()} precision="day" onClose={() => setFuPicker(false)} onConfirm={(d) => { setFuDate(d); setFuPicker(false); }} />
+      )}
+      {medDatePicker && (
+        <DatePicker
+          visible={!!medDatePicker}
+          value={(() => { const v = medDatePicker.field === 'start' ? medRows[medDatePicker.row]?.start : medRows[medDatePicker.row]?.end; return v ? new Date(v) : new Date(); })()}
+          precision="day"
+          onClose={() => setMedDatePicker(null)}
+          onConfirm={(d) => {
+            const val = d.toISOString().slice(0, 10);
+            setMedRows(medRows.map((x, j) => j === medDatePicker.row ? { ...x, [medDatePicker.field]: val } : x));
+            setMedDatePicker(null);
+          }}
+        />
+      )}
     </div>
   );
 }

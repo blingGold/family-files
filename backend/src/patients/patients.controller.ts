@@ -32,13 +32,13 @@ export class PatientsController {
     return this.patients.softDelete(user, Number(id));
   }
 
-  /** 手动编辑病人当前用药列表 */
+  /** 手动管理病人当前用药：manual 全量替换手动记录，removeDiseaseIds 移除指定疾病的就诊绑定记录 */
   @Put(':id/medications')
   updateMedications(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
-    @Body('medications') medications: any[],
+    @Body() dto: any,
   ) {
-    return this.patients.updateMedications(user, Number(id), medications);
+    return this.patients.updateMedications(user, Number(id), dto);
   }
 }

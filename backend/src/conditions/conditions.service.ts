@@ -89,12 +89,13 @@ export class ConditionsService {
   }
 
   /**
-   * 同步病人"当前用药"：取该疾病最新就诊记录的用药，
-   * 覆盖该疾病在 patient.currentMedications 中的条目（无药则移除该疾病条目）。
-   * timeRange：按用药起止推断——两端都有=时间段；只有起始=「xx 起」；都没有=长期。
-   * 公开：就诊创建/更新/复查完成自动建档后也会调用。
+   * 同步病人"当前用药"（与就诊绑定）：取该疾病最新就诊，多行用药建议合并为「一条」
+   * 绑定记录（sourceEncounterId=该就诊）；最新就诊无药则移除该疾病绑定记录。
+   * 手动录入的用药记录（manual=true）不受影响。
+   * timeRange：按用药起止推断——有起止=时间段；只有止=「~ xx 止」；只有起=「xx 起」；都没有=长期。
    */
   async syncConditionMedications(patientId: number, conditionId: number) {
+    const condition = await this.prisma.condition.findUnique({ where: { id: conditionId } });
     const latest = await this.prisma.encounter.findFirst({
       where: { conditionId, deletedAt: null },
       orderBy: { encounterDate: 'desc' },
@@ -104,29 +105,40 @@ export class ConditionsService {
     const current: any[] = Array.isArray(patient?.currentMedications)
       ? patient.currentMedications
       : [];
-    const rest = current.filter((m: any) => m.diseaseId !== conditionId);
-    let entries: any[] = [];
+    // 该疾病已有的绑定记录（manual 为假值即视为绑定；手动记录 manual=true 不受影响）
+    const isBinding = (m: any) => !m.manual && m.diseaseId === conditionId;
+    const rest = current.filter((m: any) => !isBinding(m));
+
+    let entry: any = null;
     if (latest && latest.medications.length) {
-      entries = latest.medications.map((m: any) => {
-        const sd = m.startDate ? m.startDate.toISOString().slice(0, 10) : '';
-        const ed = m.endDate ? m.endDate.toISOString().slice(0, 10) : '';
-        let timeRange = '长期';
-        if (sd && ed) timeRange = `${sd} ~ ${ed}`;
-        else if (ed) timeRange = `~ ${ed} 止`;
-        else if (sd) timeRange = `${sd} 起`;
-        return {
-          diseaseId: conditionId,
-          name: m.name,
-          dosage: m.dosage || '',
-          frequency: m.frequency || '',
-          timeRange,
-          note: m.purpose || '',
-        };
-      });
+      const text = latest.medications
+        .map((m: any) => [m.name, m.dosage, m.frequency].filter(Boolean).join(' '))
+        .join('\n');
+      const withStart = latest.medications.filter((m: any) => m.startDate)
+        .map((m: any) => m.startDate.toISOString().slice(0, 10)).sort();
+      const withEnd = latest.medications.filter((m: any) => m.endDate)
+        .map((m: any) => m.endDate.toISOString().slice(0, 10)).sort();
+      const startDate = withStart.length ? withStart[0] : '';
+      const endDate = withEnd.length ? withEnd[withEnd.length - 1] : '';
+      let timeRange = '长期';
+      if (startDate && endDate) timeRange = `${startDate} ~ ${endDate}`;
+      else if (endDate) timeRange = `~ ${endDate} 止`;
+      else if (startDate) timeRange = `${startDate} 起`;
+      entry = {
+        id: `c-${conditionId}`,
+        diseaseId: conditionId,
+        diseaseName: condition?.name || '',
+        sourceEncounterId: latest.id,
+        manual: false,
+        text,
+        startDate: startDate || null,
+        endDate: endDate || null,
+        timeRange,
+      };
     }
     await this.prisma.patient.update({
       where: { id: patientId },
-      data: { currentMedications: [...rest, ...entries] },
+      data: { currentMedications: entry ? [...rest, entry] : rest },
     });
   }
 
