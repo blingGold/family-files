@@ -93,6 +93,7 @@ export const DISEASE_PRESETS: DiseasePreset[] = [
   { name: '腰椎间盘突出', aliases: '腰突,腰椎间盘突出症', category: '骨骼关节' },
   { name: '颈椎病', aliases: '颈椎间盘突出', category: '骨骼关节' },
   { name: '肩周炎', aliases: '冻结肩', category: '骨骼关节' },
+  { name: '肌筋膜疼痛综合征', aliases: '肌痛,筋膜炎,痛性肌痉挛,肌筋膜疼痛,肌筋膜炎,纤维肌痛,腰肌劳损,腰痛,肌肉疼痛,肌肉痉挛', category: '骨骼关节' },
   { name: '强直性脊柱炎', aliases: 'AS', category: '骨骼关节' },
 
   // 泌尿肾脏
