@@ -268,13 +268,13 @@ export default function NewEncounterPage() {
           background: '#5b8db8', color: '#fff', fontSize: 15, fontWeight: 500,
         }}>{saving ? '保存中…' : '保存就诊记录'}</button>
       </div>
-      <DatePicker visible={pickerVisible} value={date} onClose={() => setPickerVisible(false)} onConfirm={(d) => { setDate(d); setPickerVisible(false); }} />
-      <DatePicker visible={fuPickerVisible} value={fuDate} onClose={() => setFuPickerVisible(false)} onConfirm={(d) => { setFuDate(d); setFuPickerVisible(false); }} />
+      <DatePicker visible={pickerVisible} value={date} precision="day" min={new Date(1900, 0, 1)} onClose={() => setPickerVisible(false)} onConfirm={(d) => { setDate(d); setPickerVisible(false); }} />
+      <DatePicker visible={fuPickerVisible} value={fuDate} precision="day" min={new Date(1900, 0, 1)} onClose={() => setFuPickerVisible(false)} onConfirm={(d) => { setFuDate(d); setFuPickerVisible(false); }} />
       {medStartPicker && (
-        <DatePicker visible={medStartPicker} value={medStart || new Date()} onClose={() => setMedStartPicker(false)} onConfirm={(d) => { setMedStart(d); setMedStartPicker(false); }} />
+        <DatePicker visible={medStartPicker} value={medStart || new Date()} precision="day" min={new Date(1900, 0, 1)} onClose={() => setMedStartPicker(false)} onConfirm={(d) => { setMedStart(d); setMedStartPicker(false); }} />
       )}
       {medEndPicker && (
-        <DatePicker visible={medEndPicker} value={medEnd || new Date()} onClose={() => setMedEndPicker(false)} onConfirm={(d) => { setMedEnd(d); setMedEndPicker(false); }} />
+        <DatePicker visible={medEndPicker} value={medEnd || new Date()} precision="day" min={new Date(1900, 0, 1)} onClose={() => setMedEndPicker(false)} onConfirm={(d) => { setMedEnd(d); setMedEndPicker(false); }} />
       )}
     </div>
   );

@@ -532,10 +532,11 @@ export default function ConditionTimelinePage() {
         </div>
       )}
 
-      <DatePicker visible={fuPicker} value={fuDate} onClose={() => setFuPicker(false)} onConfirm={(d) => { setFuDate(d); setFuPicker(false); }} />
+      <DatePicker visible={fuPicker} value={fuDate} precision="day" min={new Date(1900, 0, 1)} onClose={() => setFuPicker(false)} onConfirm={(d) => { setFuDate(d); setFuPicker(false); }} />
       <DatePicker
         visible={exportPicker !== null}
         value={exportPicker === 'from' ? (fromDate || new Date()) : toDate}
+        min={new Date(1900, 0, 1)}
         onClose={() => setExportPicker(null)}
         onConfirm={(d) => {
           if (exportPicker === 'from') onFromChange(d);

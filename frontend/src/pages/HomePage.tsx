@@ -632,22 +632,23 @@ export default function HomePage() {
 
       {/* 统一时间组件：antd-mobile DatePicker 弹层 */}
       {npBirthPicker && (
-        <DatePicker visible={npBirthPicker} value={np.birthDate ? new Date(np.birthDate) : new Date()} precision="day" onClose={() => setNpBirthPicker(false)} onConfirm={(d) => { setNp({ ...np, birthDate: d.toISOString().slice(0, 10) }); setNpBirthPicker(false); }} />
+        <DatePicker visible={npBirthPicker} value={np.birthDate ? new Date(np.birthDate) : new Date()} precision="day" min={new Date(1900, 0, 1)} max={new Date()} onClose={() => setNpBirthPicker(false)} onConfirm={(d) => { setNp({ ...np, birthDate: d.toISOString().slice(0, 10) }); setNpBirthPicker(false); }} />
       )}
       {visitPicker && (
-        <DatePicker visible={visitPicker} value={nc.visitDate ? new Date(nc.visitDate) : new Date()} precision="day" onClose={() => setVisitPicker(false)} onConfirm={(d) => { setNc({ ...nc, visitDate: d.toISOString().slice(0, 10) }); setVisitPicker(false); }} />
+        <DatePicker visible={visitPicker} value={nc.visitDate ? new Date(nc.visitDate) : new Date()} precision="day" min={new Date(1900, 0, 1)} onClose={() => setVisitPicker(false)} onConfirm={(d) => { setNc({ ...nc, visitDate: d.toISOString().slice(0, 10) }); setVisitPicker(false); }} />
       )}
       {discoverPicker && (
-        <DatePicker visible={discoverPicker} value={nc.discoveredDate ? new Date(nc.discoveredDate) : new Date()} precision="day" onClose={() => setDiscoverPicker(false)} onConfirm={(d) => { setNc({ ...nc, discoveredDate: d.toISOString().slice(0, 10) }); setDiscoverPicker(false); }} />
+        <DatePicker visible={discoverPicker} value={nc.discoveredDate ? new Date(nc.discoveredDate) : new Date()} precision="day" min={new Date(1900, 0, 1)} onClose={() => setDiscoverPicker(false)} onConfirm={(d) => { setNc({ ...nc, discoveredDate: d.toISOString().slice(0, 10) }); setDiscoverPicker(false); }} />
       )}
       {fuPicker && (
-        <DatePicker visible={fuPicker} value={fuDate || new Date()} precision="day" onClose={() => setFuPicker(false)} onConfirm={(d) => { setFuDate(d); setFuPicker(false); }} />
+        <DatePicker visible={fuPicker} value={fuDate || new Date()} precision="day" min={new Date(1900, 0, 1)} onClose={() => setFuPicker(false)} onConfirm={(d) => { setFuDate(d); setFuPicker(false); }} />
       )}
       {medDatePicker && (
         <DatePicker
           visible={!!medDatePicker}
           value={(() => { const v = medDatePicker.field === 'start' ? medRows[medDatePicker.row]?.start : medRows[medDatePicker.row]?.end; return v ? new Date(v) : new Date(); })()}
           precision="day"
+          min={new Date(1900, 0, 1)}
           onClose={() => setMedDatePicker(null)}
           onConfirm={(d) => {
             const val = d.toISOString().slice(0, 10);

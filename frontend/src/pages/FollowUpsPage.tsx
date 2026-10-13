@@ -219,6 +219,7 @@ export default function FollowUpsPage() {
 
       <DatePicker
         visible={editPicker}
+        min={new Date(1900, 0, 1)}
         value={editDate}
         onClose={() => setEditPicker(false)}
         onConfirm={(d) => { setEditDate(d); setEditPicker(false); }}
