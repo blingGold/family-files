@@ -16,6 +16,8 @@ RUN npm run build
 
 # ---------- 运行阶段 ----------
 FROM docker.m.daocloud.io/library/nginx:1.27-alpine
+ARG APP_VERSION=dev
+LABEL version=${APP_VERSION}
 
 COPY --from=builder /build/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf

@@ -30,6 +30,8 @@ RUN npm run build
 
 # ---------- 运行阶段 ----------
 FROM docker.m.daocloud.io/library/node:22-bookworm-slim
+ARG APP_VERSION=dev
+LABEL version=${APP_VERSION}
 
 ENV NODE_ENV=production
 WORKDIR /app

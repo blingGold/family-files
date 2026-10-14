@@ -118,3 +118,9 @@ docker compose down -v           # ⚠️ 停止并删除数据卷（数据永�
 - 数据库：SQLite（单文件），部署后位于 `dbdata` 卷的 `dev.db`
 - 上传附件：`uploads` 卷，经 `/api/attachments/:id` 鉴权后访问
 - OCR：调用 DeepSeek 大模型识别图片内容（每次识别消耗 API 额度）
+
+【镜像清理（v12.5 起）】
+- 镜像 tag 固定 latest，重新构建会覆盖旧镜像，不再产生 v12.x 历史版本堆积；
+- 每次重建后，旧镜像会变成 <none> 悬空镜像（不占用的历史层），
+  可在极空间 Docker → 镜像 页面用【清理】功能一键清除，仅保留 family-files-backend:latest 和 family-files-frontend:latest；
+- 版本辨识：docker-compose.yml 顶部注释 + 镜像 label（version=v12.5）。
