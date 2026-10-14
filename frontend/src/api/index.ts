@@ -71,6 +71,8 @@ export const api = {
 
   users: () => client.get('/users').then((r) => r.data),
   createUser: (data: any) => client.post('/users', data).then((r) => r.data),
+  updateUser: (id: number, data: any) => client.put(`/users/${id}`, data).then((r) => r.data),
+  changePassword: (data: any) => client.post('/auth/change-password', data).then((r) => r.data),
   setUserAccess: (userId: number, patientIds: number[]) =>
     client.post(`/users/${userId}/access`, { patientIds }).then((r) => r.data),
   deleteUser: (id: number) =>

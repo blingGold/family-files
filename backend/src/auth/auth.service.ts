@@ -2,12 +2,14 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
+    private users: UsersService,
   ) {}
 
   async login(username: string, password: string) {
@@ -31,5 +33,10 @@ export class AuthService {
         role: user.role,
       },
     };
+  }
+
+  /** 修改当前账号密码（旧密码校验、hash 更新在 users 服务内完成） */
+  async changePassword(userId: number, oldPassword: string, newPassword: string) {
+    return this.users.changeMyPassword(userId, oldPassword, newPassword);
   }
 }

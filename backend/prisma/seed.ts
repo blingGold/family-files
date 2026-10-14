@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { encryptPlainPassword } from '../src/common/password-crypto';
 
 const prisma = new PrismaClient();
 
@@ -17,6 +18,7 @@ async function main() {
     create: {
       username: 'admin',
       passwordHash,
+      passwordPlainEnc: encryptPlainPassword(adminPassword),
       displayName: '管理员',
       role: 'ADMIN',
     },

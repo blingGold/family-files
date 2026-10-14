@@ -13,10 +13,12 @@ datasource db {
 // ---------- 账号与权限 ----------
 
 model User {
-  id           Int      @id @default(autoincrement())
-  username     String   @unique
-  passwordHash String
-  displayName  String
+  id              Int      @id @default(autoincrement())
+  username        String   @unique
+  passwordHash    String
+  // 可查看密码（AES-256-GCM 加密存储，管理员查看时解密；登录校验仍走 passwordHash）
+  passwordPlainEnc String?
+  displayName     String
   role         Role     @default(USER)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
