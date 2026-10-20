@@ -2,8 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { TabBar } from 'antd-mobile';
 import { AppOutline, BellOutline, CheckShieldOutline, UserOutline } from 'antd-mobile-icons';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../api';
+import { usePatientStore } from '../store/patient';
 import { fmtDate } from '../utils/date';
 
 export default function InsurancePage() {
@@ -11,16 +12,22 @@ export default function InsurancePage() {
   const [tab, setTab] = useState('ins');
   const patientsQ = useQuery({ queryKey: ['patients'], queryFn: api.patients });
   const patients = patientsQ.data || [];
+  // 跟随全局当前病人
+  const { currentPatientId, setCurrentPatientId } = usePatientStore();
+  const activeId = patients.some((p: any) => p.id === currentPatientId) ? currentPatientId : (patients[0]?.id ?? null);
+  useEffect(() => { if (activeId && activeId !== currentPatientId) setCurrentPatientId(activeId); }, [activeId, currentPatientId]);
   const insurancesQ = useQuery({
-    queryKey: ['insurances', patients[0]?.id],
-    queryFn: () => api.insurances(patients[0].id),
-    enabled: patients.length > 0,
+    queryKey: ['insurances', activeId],
+    queryFn: () => api.insurances(activeId!),
+    enabled: !!activeId,
   });
   const list = insurancesQ.data || [];
 
   return (
     <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh', background: '#f4f5f7', paddingBottom: 80 }}>
-      <div style={{ padding: '14px 16px 8px', fontSize: 18, fontWeight: 600 }}>保险保单</div>
+      <div style={{ padding: '14px 16px 8px', fontSize: 18, fontWeight: 600 }}>
+        保险保单 · {patients.find((p: any) => p.id === activeId)?.name || ''}
+      </div>
       <div style={{ padding: '0 16px' }}>
         {list.length === 0 && <div style={{ background: '#fff', padding: 24, borderRadius: 12, textAlign: 'center', color: '#7a828c', fontSize: 13 }}>暂无保单</div>}
         {list.map((i: any) => (

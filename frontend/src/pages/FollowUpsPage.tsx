@@ -3,9 +3,10 @@ import { TabBar, DatePicker } from 'antd-mobile';
 import {
   AppOutline, BellOutline, CheckShieldOutline, ClockCircleOutline, UserOutline,
 } from 'antd-mobile-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import { usePatientStore } from '../store/patient';
 
 function fmtDate(d: any) {
   if (!d) return '';
@@ -17,7 +18,17 @@ export default function FollowUpsPage() {
   const [tab, setTab] = useState('alarm');
   const nav = useNavigate();
   const qc = useQueryClient();
-  const listQ = useQuery({ queryKey: ['followups'], queryFn: () => api.followups() });
+  // 全局当前病人上下文：提醒页只显示该病人的复查（与首页"即将复查"同一后端口径）
+  const { currentPatientId, setCurrentPatientId } = usePatientStore();
+  const patientsQ = useQuery({ queryKey: ['patients'], queryFn: api.patients });
+  const patients = patientsQ.data || [];
+  const activeId = patients.some((p: any) => p.id === currentPatientId) ? currentPatientId : (patients[0]?.id ?? null);
+  useEffect(() => { if (activeId && activeId !== currentPatientId) setCurrentPatientId(activeId); }, [activeId, currentPatientId]);
+  const listQ = useQuery({
+    queryKey: ['followups', activeId],
+    queryFn: () => api.followups({ scope: 'patient', patientId: activeId }),
+    enabled: !!activeId,
+  });
   const badgeQ = useQuery({ queryKey: ['badge'], queryFn: api.followupBadge });
   const [filter, setFilter] = useState<'all' | 'overdue' | 'soon'>('all');
 
@@ -99,7 +110,9 @@ export default function FollowUpsPage() {
 
   return (
     <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh', background: '#f4f5f7', paddingBottom: 80 }}>
-      <div style={{ padding: '14px 16px 8px', fontSize: 18, fontWeight: 600, color: '#2b2f36' }}>复查提醒</div>
+      <div style={{ padding: '14px 16px 8px', fontSize: 18, fontWeight: 600, color: '#2b2f36' }}>
+        复查提醒 · {patients.find((p: any) => p.id === activeId)?.name || ''}
+      </div>
       <div style={{ display: 'flex', gap: 8, padding: '0 16px 12px' }}>
         {([['all', '全部'], ['overdue', '逾期'], ['soon', '临近']] as const).map(([k, label]) => (
           <span key={k} onClick={() => setFilter(k)} style={{
@@ -137,7 +150,7 @@ export default function FollowUpsPage() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 500, color: '#2b2f36' }}>
-                    {f.patient?.name || ''} · {f.condition?.name || ''}
+                    {f.condition?.name || '复查计划'}
                   </div>
                   <div style={{ fontSize: 12, color: overdue ? '#c26b5a' : '#7a828c', marginTop: 3 }}>
                     {overdue ? `逾期 ${d} 天 · ` : `${d} 天后 · `}{fmtDate(f.dueDate)} {f.items ? `· ${f.items}` : ''}

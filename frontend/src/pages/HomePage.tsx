@@ -10,6 +10,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import { usePatientStore } from '../store/patient';
 import { DISEASE_PRESETS, DISEASE_CATEGORIES, CUSTOM_DISEASE, matchDisease } from '../constants/diseases';
 
 const STATUS_META: Record<string, { label: string; bar: string; tagBg: string; tagColor: string }> = {
@@ -74,6 +75,7 @@ const inputStyle: React.CSSProperties = {
 export default function HomePage() {
   const [tab, setTab] = useState('home');
   const [patientId, setPatientId] = useState<number | null>(null);
+  const { currentPatientId, setCurrentPatientId } = usePatientStore();
   const nav = useNavigate();
   const qc = useQueryClient();
 
@@ -110,7 +112,11 @@ export default function HomePage() {
   const patients = patientsQ.data || [];
 
   useEffect(() => {
-    if (patientId === null && patients.length > 0) setPatientId(patients[0].id);
+    if (patientId === null && patients.length > 0) {
+      const valid = patients.some((p: any) => p.id === currentPatientId) ? currentPatientId : patients[0].id;
+      setPatientId(valid);
+      if (valid !== currentPatientId) setCurrentPatientId(valid);
+    }
   }, [patients, patientId]);
 
   const detailQ = useQuery({
@@ -123,9 +129,12 @@ export default function HomePage() {
   const patient = detailQ.data;
   const conditions = patient?.conditions || [];
   const activeConditions = conditions.filter((c: any) => c.status !== 'CURED');
-  const pendingFus = conditions.flatMap((c: any) =>
-    (c.followUps || []).map((f: any) => ({ ...f, conditionName: c.name, conditionId: c.id })),
-  ).sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+  const fuQ = useQuery({
+    queryKey: ['followups', patientId],
+    queryFn: () => api.followups({ scope: 'patient', patientId }),
+    enabled: !!patientId,
+  });
+  const pendingFus = (fuQ.data || []).map((f: any) => ({ ...f, conditionName: f.condition?.name || '' }));
   const insurances = patient?.insurances || [];
   // 当前用药：自动过滤已失效（endDate 早于今天）的记录
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -189,7 +198,7 @@ export default function HomePage() {
       const created = await api.createPatient(np);
       setShowNewPatient(false); setNp({});
       qc.invalidateQueries({ queryKey: ['patients'] });
-      setPatientId(created.id);
+      setPatientId(created.id); setCurrentPatientId(created.id);
     } catch (e: any) {
       alert(e?.response?.data?.message || '保存失败');
     } finally {
@@ -292,7 +301,7 @@ export default function HomePage() {
     <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh', background: '#f4f5f7', paddingBottom: 80 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px 8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <select value={patientId ?? ''} onChange={(e) => setPatientId(Number(e.target.value))}
+          <select value={patientId ?? ''} onChange={(e) => { const id = Number(e.target.value); setPatientId(id); setCurrentPatientId(id); }}
             style={{ fontSize: 18, fontWeight: 600, color: '#2b2f36', border: 'none', background: 'transparent', outline: 'none' }}>
             {patients.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
