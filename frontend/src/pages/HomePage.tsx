@@ -19,8 +19,16 @@ const STATUS_META: Record<string, { label: string; bar: string; tagBg: string; t
   CHRONIC: { label: '慢性管理', bar: '#7ba88c', tagBg: 'rgba(123,168,140,0.14)', tagColor: '#5a8069' },
 };
 
-function fmtDate(d: string) {
-  return d ? new Date(d).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }) : '';
+function fmtDate(d: any) {
+  if (!d) return '';
+  const t = new Date(d);
+  return isNaN(t.getTime()) ? '' : t.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
+}
+// 完整日期（yyyy/mm/dd），空值/非法返回 ''
+function fmtDateFull(d: any) {
+  if (!d) return '';
+  const t = new Date(d);
+  return isNaN(t.getTime()) ? '' : t.toLocaleDateString('zh-CN');
 }
 function daysBetween(a: Date, b: Date) {
   return Math.round((a.getTime() - b.getTime()) / 86400000);
@@ -262,7 +270,7 @@ export default function HomePage() {
     if (fuOn) {
       await api.createFollowUp(created.id, {
         patientId: patientId!,
-        dueDate: fuDate ? fuDate.toISOString() : new Date(Date.now() + 30 * 86400000).toISOString(),
+        dueDate: fuDate ? (fmtDateFull(fuDate) ? new Date(fuDate).toISOString() : new Date(Date.now() + 30 * 86400000).toISOString()) : new Date(Date.now() + 30 * 86400000).toISOString(),
         items: fuItems || '首次复查',
         recurring: fuRecurring,
         intervalMonths: fuRecurring ? fuInterval : undefined,
@@ -593,7 +601,7 @@ export default function HomePage() {
                   </div>
                   <div style={{ marginTop: 10 }}>
                     <div style={{ fontSize: 13, color: '#7a828c', marginBottom: 4 }}>提醒日期（自定义）</div>
-                    <div style={inputStyle as any} onClick={() => setFuPicker(true)}>{fuDate ? fuDate.toLocaleDateString('zh-CN') : '选择日期'}</div>
+                    <div style={inputStyle as any} onClick={() => setFuPicker(true)}>{fuDate ? (fmtDateFull(fuDate) || '选择日期') : '选择日期'}</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
                     <span style={{ fontSize: 13, color: '#2b2f36' }}>周期复查（每 N 个月提醒）</span>
