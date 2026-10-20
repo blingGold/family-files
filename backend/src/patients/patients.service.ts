@@ -50,8 +50,17 @@ export class PatientsService {
   }
 
   async create(user: AuthUser, dto: CreatePatientDto) {
-    if (user.role !== 'ADMIN') throw new ForbiddenException('仅管理员可新建家庭成员');
-    return this.prisma.patient.create({ data: this.toData(dto) });
+    // 任何登录用户都可新增家庭成员（家庭协作：谁录的谁管）
+    // 非管理员创建后自动获得该成员的查看/管理权限；管理员天然可见全部，无需授权
+    const patient = await this.prisma.patient.create({ data: this.toData(dto) });
+    if (user.role !== 'ADMIN') {
+      await this.prisma.userPatientAccess.upsert({
+        where: { userId_patientId: { userId: user.id, patientId: patient.id } },
+        update: {},
+        create: { userId: user.id, patientId: patient.id },
+      });
+    }
+    return patient;
   }
 
   async update(user: AuthUser, id: number, dto: UpdatePatientDto) {
