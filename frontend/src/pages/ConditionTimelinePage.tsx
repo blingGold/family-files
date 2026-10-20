@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { NavBar, DatePicker, Checkbox, Dialog } from 'antd-mobile';
 import { useRef, useState } from 'react';
 import { api } from '../api';
+import { fmtDate } from '../utils/date';
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '10px 12px', border: '1px solid #e5e7ec', borderRadius: 8,
@@ -10,7 +11,7 @@ const inputStyle: React.CSSProperties = {
 };
 
 function fmtDateTime(d: string) {
-  return new Date(d).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  return fmtDate(d);
 }
 
 function fuStatusText(s: string) {
@@ -33,7 +34,7 @@ function buildExportMd(condition: any, encs: any[]): string {
   L.push('');
   L.push('## 就诊记录');
   encs.forEach((e: any, i: number) => {
-    const d = new Date(e.encounterDate).toLocaleDateString('zh-CN');
+    const d = fmtDate(e.encounterDate);
     L.push(`### ${i + 1}. ${d}${e.hospital ? ' · ' + e.hospital : ''}${e.doctor ? ' · ' + e.doctor : ''}`);
     if (e.diagnosis) L.push(`- **诊断**：${e.diagnosis}`);
     if (e.chiefComplaint) L.push(`- **主诉**：${e.chiefComplaint}`);
@@ -348,7 +349,7 @@ export default function ConditionTimelinePage() {
                         ev.stopPropagation();
                         Dialog.confirm({
                           title: '删除就诊记录',
-                          content: `确定删除 ${new Date(n.data.encounterDate).toLocaleDateString('zh-CN')}${n.data.hospital ? ' · ' + n.data.hospital : ''} 这条就诊记录吗？\n\n删除后从时间轴隐藏（数据保留，可恢复）。`,
+                          content: `确定删除 ${fmtDate(n.data.encounterDate)}${n.data.hospital ? ' · ' + n.data.hospital : ''} 这条就诊记录吗？\n\n删除后从时间轴隐藏（数据保留，可恢复）。`,
                           confirmText: '确认删除',
                           cancelText: '再想想',
                           onConfirm: async () => {
@@ -420,13 +421,13 @@ export default function ConditionTimelinePage() {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, color: '#7a828c', marginBottom: 4 }}>开始日期</div>
                     <div onClick={() => setExportPicker('from')} style={{ ...inputStyle, fontSize: 13, textAlign: 'center' }}>
-                      {fromDate ? fromDate.toLocaleDateString('zh-CN') : '不限'}
+                      {fromDate ? fmtDate(fromDate) : '不限'}
                     </div>
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, color: '#7a828c', marginBottom: 4 }}>结束日期</div>
                     <div onClick={() => setExportPicker('to')} style={{ ...inputStyle, fontSize: 13, textAlign: 'center' }}>
-                      {toDate.toLocaleDateString('zh-CN')}
+                      {fmtDate(toDate)}
                     </div>
                   </div>
                 </div>
@@ -449,7 +450,7 @@ export default function ConditionTimelinePage() {
                         setCheckedEncIds(ev.target.checked ? [...checkedEncIds, e.id] : checkedEncIds.filter((x) => x !== e.id));
                       }} />
                       <div style={{ fontSize: 13, color: '#2b2f36' }}>
-                        {new Date(e.encounterDate).toLocaleDateString('zh-CN')}{e.hospital ? ' · ' + e.hospital : ''}{e.doctor ? ' · ' + e.doctor : ''}
+                        {fmtDate(e.encounterDate)}{e.hospital ? ' · ' + e.hospital : ''}{e.doctor ? ' · ' + e.doctor : ''}
                       </div>
                       {e.diagnosis && <div style={{ fontSize: 12, color: '#7a828c', marginLeft: 'auto', maxWidth: '40%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.diagnosis}</div>}
                     </div>
@@ -510,7 +511,7 @@ export default function ConditionTimelinePage() {
             )}
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 13, color: '#7a828c', marginBottom: 4 }}>提醒日期（自定义）</div>
-              <div style={inputStyle as any} onClick={() => setFuPicker(true)}>{fuDate.toLocaleDateString('zh-CN')}</div>
+              <div style={inputStyle as any} onClick={() => setFuPicker(true)}>{fmtDate(fuDate)}</div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <span style={{ fontSize: 13, color: '#2b2f36' }}>周期复查</span>

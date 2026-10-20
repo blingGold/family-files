@@ -4,6 +4,7 @@ import { AppOutline, BellOutline, CheckShieldOutline, UserOutline } from 'antd-m
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { api } from '../api';
+import { fmtDate } from '../utils/date';
 
 export default function InsurancePage() {
   const nav = useNavigate();
@@ -26,7 +27,7 @@ export default function InsurancePage() {
           <div key={i.id} style={{ background: '#fff', padding: 14, borderRadius: 16, marginBottom: 10, border: '0.5px solid #e5e7ec' }}>
             <div style={{ fontSize: 15, fontWeight: 600 }}>{i.kind === 'MEDICAL' ? '医保' : i.insurer}</div>
             <div style={{ fontSize: 12, color: '#7a828c', marginTop: 4 }}>{i.policyNo ? `保单号 ${i.policyNo}` : ''}</div>
-            {i.validFrom && <div style={{ fontSize: 12, color: '#7a828c', marginTop: 2 }}>有效期 {new Date(i.validFrom).toLocaleDateString()} ~ {i.validTo ? new Date(i.validTo).toLocaleDateString() : '长期'}</div>}
+            {i.validFrom && <div style={{ fontSize: 12, color: '#7a828c', marginTop: 2 }}>有效期 {fmtDate(i.validFrom)} ~ {i.validTo ? fmtDate(i.validTo) : '长期'}</div>}
           </div>
         ))}
       </div>

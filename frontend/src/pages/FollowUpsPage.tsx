@@ -7,8 +7,10 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 
-function fmtDate(d: string) {
-  return d ? new Date(d).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }) : '';
+function fmtDate(d: any) {
+  if (!d) return '';
+  const t = new Date(d);
+  return isNaN(t.getTime()) ? '' : t.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
 }
 
 export default function FollowUpsPage() {
