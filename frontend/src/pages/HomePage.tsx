@@ -215,7 +215,7 @@ export default function HomePage() {
             examResult: p.examResult || '', medication: p.medication || '',
           }));
         }
-        if (p.followUpDate) { setFuOn(true); setFuDate(p.followUpDate); }
+        if (p.followUpDate) { setFuOn(true); setFuDate(new Date(p.followUpDate)); }
         if (p.followUpItems) setFuItems(p.followUpItems);
         setNc((prev: any) => ({
           ...prev,
