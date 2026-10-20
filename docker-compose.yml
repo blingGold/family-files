@@ -28,7 +28,6 @@
 # 本文件是模板（data/backend.env.example 风格），zip 内已带 data/backend.env
 services:
   backend:
-    build: ./backend
     build:
       context: ./backend
       args:
@@ -60,7 +59,6 @@ services:
       start_period: 90s
 
   frontend:
-    build: ./frontend
     build:
       context: ./frontend
       args:
