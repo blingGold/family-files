@@ -37,3 +37,8 @@ npm-debug.log*
 
 # 废弃的本机 OCR 二进制（已改用大模型识别）
 backend/scripts/ocr
+
+# 部署数据目录（密钥 / 数据库 / 上传文件），绝不提交进仓库
+data/backend.env
+data/db/
+data/uploads/
