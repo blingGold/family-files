@@ -1,4 +1,5 @@
 import client from './client';
+import { compressImage } from '../utils/image';
 
 export const api = {
   login: (username: string, password: string) =>
@@ -52,18 +53,18 @@ export const api = {
 
   exportSummary: (conditionId: number, encounterIds: number[]) =>
     client.post(`/conditions/${conditionId}/export-summary`, { encounterIds }).then((r) => r.data),
-  ocr: (file: File) => {
+  ocr: async (file: File) => {
     const fd = new FormData();
-    fd.append('file', file);
+    fd.append('file', await compressImage(file));
     return client.post('/ocr', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 30000,
     }).then((r) => r.data);
   },
 
-  uploadAttachment: (file: File) => {
+  uploadAttachment: async (file: File) => {
     const fd = new FormData();
-    fd.append('file', file);
+    fd.append('file', await compressImage(file));
     return client.post('/attachments', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }).then((r) => r.data);
