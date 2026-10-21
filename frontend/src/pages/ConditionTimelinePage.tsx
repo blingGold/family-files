@@ -306,6 +306,26 @@ export default function ConditionTimelinePage() {
             {condition.examSuggest && <div style={{ fontSize: 13, color: '#4a5568', marginBottom: 4 }}><b>检查建议：</b>{condition.examSuggest}</div>}
             {condition.examResult && <div style={{ fontSize: 13, color: '#4a5568', marginBottom: 4 }}><b>检查结果：</b>{condition.examResult}</div>}
             {condition.medication && <div style={{ fontSize: 13, color: '#4a5568' }}><b>用药建议：</b>{condition.medication}</div>}
+            {condition.attachments?.length > 0 && (
+              <div style={{ marginTop: 10, borderTop: '0.5px solid #e5e7ec', paddingTop: 10 }}>
+                {['影像', '抽血结果', 'B超结果', '其他'].map((cat) => {
+                  const items = (condition.attachments || []).filter((a: any) => (a.category || '其他') === cat);
+                  if (!items.length) return null;
+                  return (
+                    <div key={cat} style={{ marginBottom: 6 }}>
+                      <div style={{ fontSize: 12, color: '#7a828c', marginBottom: 4 }}>{cat}（{items.length}）</div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {items.map((a: any) => (
+                          <img key={a.id} src={`/api/attachments/${a.id}`} alt=""
+                            onClick={() => window.open(`/api/attachments/${a.id}`, '_blank')}
+                            style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover', border: '0.5px solid #e5e7ec', cursor: 'pointer' }} />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

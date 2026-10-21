@@ -2,6 +2,7 @@ import { NavBar, DatePicker, Checkbox } from 'antd-mobile';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
+import { compressImage } from '../utils/image';
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '10px 12px', border: '1px solid #e5e7ec', borderRadius: 8,
@@ -17,6 +18,8 @@ export default function NewEncounterPage() {
   const [attachments, setAttachments] = useState<any[]>([]);
   const [attCat, setAttCat] = useState('影像');
   const attInputRef = useRef<HTMLInputElement>(null);
+  const [pendingFiles, setPendingFiles] = useState<{ cat: string; file: File; preview: string; uid: number }[]>([]);
+  const pendingUid = useRef(0);
   const [date, setDate] = useState<Date>(new Date());
   const [pickerVisible, setPickerVisible] = useState(false);
   const [form, setForm] = useState<any>({});
@@ -149,7 +152,15 @@ export default function NewEncounterPage() {
           payload.followUpRecurring = recurring;
           payload.followUpIntervalMonths = recurring ? intervalMonths : undefined;
         }
-        await api.createEncounter(Number(conditionId), payload);
+        const created = await api.createEncounter(Number(conditionId), payload);
+        // 新建态暂存图片 → 保存后自动上传
+        for (const pf of pendingFiles) {
+          try {
+            await api.uploadEncounterAttachment(created.id, await compressImage(pf.file), pf.cat);
+          } catch (err: any) {
+            alert(`图片「${pf.file.name}」上传失败：${err?.response?.data?.message || '请重新进入编辑页补传'}`);
+          }
+        }
       }
       nav(-1);
     } catch (e: any) {
@@ -166,18 +177,26 @@ export default function NewEncounterPage() {
     const files = Array.from(e.target.files || []);
     e.target.value = '';
     if (!files.length) return;
-    for (const f of files) {
-      try {
-        await api.uploadEncounterAttachment(Number(encounterId), f as File, attCat);
-      } catch (err: any) {
-        alert(err?.response?.data?.message || '上传失败，请重试');
-        break;
+    if (isEdit) {
+      for (const f of files) {
+        try {
+          await api.uploadEncounterAttachment(Number(encounterId), f as File, attCat);
+        } catch (err: any) {
+          alert(err?.response?.data?.message || '上传失败，请重试');
+          break;
+        }
       }
+      try {
+        const fresh = await api.encounter(Number(encounterId));
+        setAttachments(fresh.attachments || []);
+      } catch { /* ignore */ }
+    } else {
+      // 新建态：暂存本地，保存就诊记录后自动上传
+      setPendingFiles((prev) => [
+        ...prev,
+        ...files.map((f) => ({ cat: attCat, file: f as File, preview: URL.createObjectURL(f as File), uid: ++pendingUid.current })),
+      ]);
     }
-    try {
-      const fresh = await api.encounter(Number(encounterId));
-      setAttachments(fresh.attachments || []);
-    } catch { /* ignore */ }
   };
   const removeAtt = async (attId: number) => {
     if (!confirm('确定删除这张图片？')) return;
@@ -265,28 +284,60 @@ export default function NewEncounterPage() {
               ))}
             </div>
             <input ref={attInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleAttUpload} />
-            <div style={{ fontSize: 12, color: '#7a828c', marginBottom: 6 }}>已按分类保存，保存本页其他信息后图片不丢失；点击缩略图查看大图。</div>
-            {attGroups.length === 0 && (
-              <div style={{ fontSize: 12, color: '#aab2bd', background: '#fff', border: '0.5px dashed #e5e7ec', borderRadius: 8, padding: '14px', textAlign: 'center' }}>暂无图片，点击上方分类标签开始上传（可多选、可重复传）</div>
-            )}
-            {attGroups.map((g) => (
-              <div key={g.cat} style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 12, color: '#7a828c', marginBottom: 4 }}>{g.cat}（{g.items.length}）</div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {g.items.map((a: any) => (
-                    <div key={a.id} style={{ position: 'relative' }}>
-                      <img src={`/api/attachments/${a.id}`} alt="" onClick={() => window.open(`/api/attachments/${a.id}`, '_blank')}
-                        style={{ width: 72, height: 72, borderRadius: 8, objectFit: 'cover', border: '0.5px solid #e5e7ec', cursor: 'pointer' }} />
-                      <span onClick={() => removeAtt(a.id)} style={{
-                        position: 'absolute', top: -6, right: -6, background: '#d97b7b', color: '#fff',
-                        width: 18, height: 18, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 11, cursor: 'pointer',
-                      }}>×</span>
+            {isEdit ? (
+              <>
+                <div style={{ fontSize: 12, color: '#7a828c', marginBottom: 6 }}>已按分类保存，保存本页其他信息后图片不丢失；点击缩略图查看大图。</div>
+                {attGroups.length === 0 && (
+                  <div style={{ fontSize: 12, color: '#aab2bd', background: '#fff', border: '0.5px dashed #e5e7ec', borderRadius: 8, padding: '14px', textAlign: 'center' }}>暂无图片，点击上方分类标签开始上传（可多选、可重复传）</div>
+                )}
+                {attGroups.map((g) => (
+                  <div key={g.cat} style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, color: '#7a828c', marginBottom: 4 }}>{g.cat}（{g.items.length}）</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {g.items.map((a: any) => (
+                        <div key={a.id} style={{ position: 'relative' }}>
+                          <img src={`/api/attachments/${a.id}`} alt="" onClick={() => window.open(`/api/attachments/${a.id}`, '_blank')}
+                            style={{ width: 72, height: 72, borderRadius: 8, objectFit: 'cover', border: '0.5px solid #e5e7ec', cursor: 'pointer' }} />
+                          <span onClick={() => removeAtt(a.id)} style={{
+                            position: 'absolute', top: -6, right: -6, background: '#d97b7b', color: '#fff',
+                            width: 18, height: 18, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 11, cursor: 'pointer',
+                          }}>×</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+                  </div>
+                ))}
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 12, color: '#7a828c', marginBottom: 6 }}>先选图暂存（可多选），保存就诊记录后自动上传。</div>
+                {pendingFiles.length === 0 && (
+                  <div style={{ fontSize: 12, color: '#aab2bd', background: '#fff', border: '0.5px dashed #e5e7ec', borderRadius: 8, padding: '14px', textAlign: 'center' }}>暂无暂存图片，点击上方分类标签选择图片</div>
+                )}
+                {ATT_CATS.map((cat) => {
+                  const items = pendingFiles.filter((p) => p.cat === cat);
+                  if (!items.length) return null;
+                  return (
+                    <div key={cat} style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 12, color: '#7a828c', marginBottom: 4 }}>{cat}（{items.length}）</div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {items.map((p) => (
+                          <div key={p.uid} style={{ position: 'relative' }}>
+                            <img src={p.preview} alt="" style={{ width: 72, height: 72, borderRadius: 8, objectFit: 'cover', border: '0.5px solid #e5e7ec' }} />
+                            <span onClick={() => setPendingFiles((prev) => prev.filter((x) => x.uid !== p.uid))} style={{
+                              position: 'absolute', top: -6, right: -6, background: '#d97b7b', color: '#fff',
+                              width: 18, height: 18, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 11, cursor: 'pointer',
+                            }}>×</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            )}
           </div>
         )}
         <div style={{ marginBottom: 20 }}>

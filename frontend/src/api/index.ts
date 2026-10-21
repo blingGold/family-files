@@ -62,6 +62,14 @@ export const api = {
     }).then((r) => r.data);
   },
 
+  uploadConditionAttachment: async (conditionId: number, file: File, category: string) => {
+    const fd = new FormData();
+    fd.append('file', await compressImage(file));
+    return client.post(`/conditions/${conditionId}/attachments`, fd, {
+      params: { category },
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then((r) => r.data);
+  },
   uploadEncounterAttachment: async (encounterId: number, file: File, category: string) => {
     const fd = new FormData();
     fd.append('file', await compressImage(file));

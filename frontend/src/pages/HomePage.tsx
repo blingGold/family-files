@@ -10,6 +10,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import { compressImage } from '../utils/image';
 import { usePatientStore } from '../store/patient';
 import { DISEASE_PRESETS, DISEASE_CATEGORIES, CUSTOM_DISEASE, matchDisease } from '../constants/diseases';
 
@@ -87,6 +88,10 @@ export default function HomePage() {
   const ocrInputRef = useRef<HTMLInputElement>(null);
   const [np, setNp] = useState<any>({});
   const [nc, setNc] = useState<any>({});
+  const [condPending, setCondPending] = useState<{ cat: string; file: File; preview: string; uid: number }[]>([]);
+  const [condCat, setCondCat] = useState('影像');
+  const condAttInputRef = useRef<HTMLInputElement>(null);
+  const condPendingUid = useRef(0);
   // 新增疾病时的首次复查安排
   const [fuOn, setFuOn] = useState(false);
   const [fuItems, setFuItems] = useState('');
@@ -186,6 +191,8 @@ export default function HomePage() {
   const closeNewCondition = () => {
     setShowNewCondition(false);
     setNc({});
+    setCondPending([]);
+    setCondCat('影像');
     setFuOn(false); setFuItems(''); setFuDate(null); setFuRecurring(false);
     setOcrText(''); setOcrMatched(null);
   };
@@ -284,6 +291,14 @@ export default function HomePage() {
         recurring: fuRecurring,
         intervalMonths: fuRecurring ? fuInterval : undefined,
       });
+    }
+    // 新增疾病暂存图片 → 保存后自动上传
+    for (const pf of condPending) {
+      try {
+        await api.uploadConditionAttachment(created.id, await compressImage(pf.file), pf.cat);
+      } catch (err: any) {
+        alert(`图片「${pf.file.name}」上传失败：${err?.response?.data?.message || '请稍后进入疾病页补传'}`);
+      }
     }
     closeNewCondition();
     qc.invalidateQueries({ queryKey: ['patient', patientId] });
@@ -630,6 +645,47 @@ export default function HomePage() {
 
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button onClick={closeNewCondition} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e5e7ec', background: '#fff', fontSize: 14 }}>取消</button>
+              <div style={{ background: '#f6f7f9', borderRadius: 8, padding: 12, marginTop: 4 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#2b2f36', marginBottom: 8 }}>确诊图片（保存后自动上传，如诊断证明/影像单）</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                  {['影像', '抽血结果', 'B超结果', '其他'].map((c) => (
+                    <span key={c} onClick={() => { setCondCat(c); condAttInputRef.current?.click(); }} style={{
+                      fontSize: 12, padding: '6px 12px', borderRadius: 999, cursor: 'pointer',
+                      background: condCat === c ? '#5b8db8' : '#fff',
+                      color: condCat === c ? '#fff' : '#4a5568',
+                      border: '0.5px solid #e5e7ec',
+                    }}>{condCat === c ? `正在传：${c}` : c}</span>
+                  ))}
+                </div>
+                <input ref={condAttInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  e.target.value = '';
+                  if (!files.length) return;
+                  setCondPending((prev) => [...prev, ...files.map((f) => ({ cat: condCat, file: f as File, preview: URL.createObjectURL(f as File), uid: ++condPendingUid.current }))]);
+                }} />
+                {condPending.length === 0 && <div style={{ fontSize: 12, color: '#aab2bd', textAlign: 'center', padding: '10px 0' }}>暂未选择图片</div>}
+                {['影像', '抽血结果', 'B超结果', '其他'].map((cat) => {
+                  const items = condPending.filter((p) => p.cat === cat);
+                  if (!items.length) return null;
+                  return (
+                    <div key={cat} style={{ marginBottom: 6 }}>
+                      <div style={{ fontSize: 12, color: '#7a828c', marginBottom: 4 }}>{cat}（{items.length}）</div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {items.map((p) => (
+                          <div key={p.uid} style={{ position: 'relative' }}>
+                            <img src={p.preview} alt="" style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', border: '0.5px solid #e5e7ec' }} />
+                            <span onClick={() => setCondPending((prev) => prev.filter((x) => x.uid !== p.uid))} style={{
+                              position: 'absolute', top: -6, right: -6, background: '#d97b7b', color: '#fff',
+                              width: 18, height: 18, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 11, cursor: 'pointer',
+                            }}>×</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
               <button onClick={submitNewCondition} disabled={savingCondition} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: savingCondition ? '#9dbcd4' : '#5b8db8', color: '#fff', fontSize: 14 }}>{savingCondition ? '保存中…' : '保存'}</button>
             </div>
           </div>

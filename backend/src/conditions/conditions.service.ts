@@ -144,7 +144,10 @@ export class ConditionsService {
 
   /** 疾病时间轴：就诊 + 复查合并按日期倒序 */
   async timeline(user: AuthUser, conditionId: number) {
-    const c = await this.prisma.condition.findFirst({ where: { id: conditionId, deletedAt: null } });
+    const c = await this.prisma.condition.findFirst({
+      where: { id: conditionId, deletedAt: null },
+      include: { attachments: true },
+    });
     if (!c) throw new NotFoundException('疾病不存在');
     await this.access.assertCanAccess(user, c.patientId);
 

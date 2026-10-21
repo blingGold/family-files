@@ -121,13 +121,65 @@ export class AttachmentsController {
     return { id: record.id, fileName: record.fileName, category: record.category, url: `/api/attachments/${record.id}` };
   }
 
-  /** 删除附件（校验所属就诊/检查/手术/保险的病人访问权限，物理删除文件与记录） */
+  /** 疾病档案：按分类上传图片（确诊依据等） */
+  @Post('conditions/:id/attachments')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: (_req, _file, cb) => {
+          const dir = process.env.UPLOAD_DIR || './uploads';
+          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+          cb(null, dir);
+        },
+        filename: (_req, file, cb) => {
+          const ext = path.extname(file.originalname);
+          cb(null, `${randomUUID()}${ext}`);
+        },
+      }),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (!file.mimetype.startsWith('image/')) {
+          cb(new BadRequestException('只允许上传图片'), false);
+        } else {
+          cb(null, true);
+        }
+      },
+    }),
+  )
+  async uploadForCondition(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Query('category') category: string | undefined,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('未收到文件');
+    const c = await this.prisma.condition.findFirst({ where: { id: Number(id), deletedAt: null } });
+    if (!c) throw new NotFoundException('疾病不存在');
+    await this.access.assertCanAccess(user, c.patientId);
+    const record = await this.prisma.attachment.create({
+      data: {
+        fileName: file.originalname,
+        filePath: file.filename,
+        mimeType: file.mimetype,
+        sizeBytes: file.size,
+        conditionId: c.id,
+        category: category?.trim() || '其他',
+      },
+    });
+    return { id: record.id, fileName: record.fileName, category: record.category, url: `/api/attachments/${record.id}` };
+  }
+
+  /** 删除附件（校验所属就诊/检查/手术/保险/疾病的病人访问权限，物理删除文件与记录） */
   @Delete(':id')
   async remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     const att = await this.prisma.attachment.findUnique({ where: { id: Number(id) } });
     if (!att) throw new NotFoundException('附件不存在');
     let patientId: number | null = null;
-    if (att.encounterId) {
+    if (att.conditionId) {
+      const c = await this.prisma.condition.findUnique({ where: { id: att.conditionId } });
+      patientId = c?.patientId ?? null;
+    }
+    if (patientId === null && att.encounterId) {
       const enc = await this.prisma.encounter.findUnique({ where: { id: att.encounterId } });
       patientId = enc?.patientId ?? null;
     }
