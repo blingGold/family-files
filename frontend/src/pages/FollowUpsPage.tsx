@@ -110,8 +110,12 @@ export default function FollowUpsPage() {
 
   return (
     <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh', background: '#f4f5f7', paddingBottom: 80 }}>
-      <div style={{ padding: '14px 16px 8px', fontSize: 18, fontWeight: 600, color: '#2b2f36' }}>
-        复查提醒 · {patients.find((p: any) => p.id === activeId)?.name || ''}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 16px 8px' }}>
+        <div style={{ fontSize: 18, fontWeight: 600, color: '#2b2f36' }}>复查提醒 · </div>
+        <select value={activeId ?? ''} onChange={(e) => setCurrentPatientId(Number(e.target.value))}
+          style={{ fontSize: 18, fontWeight: 600, color: '#2b2f36', border: 'none', background: 'transparent', outline: 'none' }}>
+          {patients.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
       </div>
       <div style={{ display: 'flex', gap: 8, padding: '0 16px 12px' }}>
         {([['all', '全部'], ['overdue', '逾期'], ['soon', '临近']] as const).map(([k, label]) => (
@@ -127,7 +131,14 @@ export default function FollowUpsPage() {
       <div style={{ padding: '0 16px' }}>
         {filtered.length === 0 && (
           <div style={{ background: '#fff', borderRadius: 12, padding: 24, color: '#7a828c', fontSize: 13, textAlign: 'center' }}>
-            暂无相关复查项
+            {badgeQ.data?.count ? (
+              <>
+                <div>当前成员暂无待复查项</div>
+                <div style={{ marginTop: 6, color: '#5b8db8' }}>其他成员共有 {badgeQ.data.count} 条待复查，请切换上方成员查看</div>
+              </>
+            ) : (
+              '暂无相关复查项'
+            )}
           </div>
         )}
         {filtered.map((f: any) => {
