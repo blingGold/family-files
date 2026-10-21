@@ -62,6 +62,9 @@ export default function MePage() {
           background: '#fff', padding: 16, borderRadius: 12, border: '0.5px solid #e5e7ec',
           textAlign: 'center', color: '#c26b5a', fontSize: 14,
         }}>退出登录</div>
+        <div style={{ textAlign: 'center', fontSize: 12, color: '#aab2bd', marginTop: 18 }}>
+          版本 {import.meta.env.VITE_APP_VERSION || 'dev'}
+        </div>
       </div>
 
       {showPwd && (
