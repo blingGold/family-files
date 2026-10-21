@@ -156,6 +156,7 @@ export class ConditionsService {
           exams: { include: { attachments: true } },
           medications: true,
           procedures: { include: { attachments: true } },
+          attachments: true,
         },
       }),
       this.prisma.followUp.findMany({

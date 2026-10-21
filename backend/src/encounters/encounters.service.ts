@@ -181,6 +181,7 @@ export class EncountersService {
         exams: { include: { attachments: true } },
         medications: true,
         procedures: { include: { attachments: true } },
+        attachments: true,
       },
     });
     if (!e) throw new NotFoundException('就诊不存在');

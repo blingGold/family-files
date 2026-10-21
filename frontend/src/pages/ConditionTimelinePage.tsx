@@ -343,6 +343,26 @@ export default function ConditionTimelinePage() {
                   {n.data.medications?.map((m: any) => (
                     <div key={m.id} style={{ marginTop: 4, fontSize: 12, color: '#4a5568' }}>{m.name} {m.dosage || ''} {m.frequency || ''}</div>
                   ))}
+                  {n.data.attachments?.length > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      {['影像', '抽血结果', 'B超结果', '其他'].map((cat) => {
+                        const items = (n.data.attachments || []).filter((a: any) => (a.category || '其他') === cat);
+                        if (!items.length) return null;
+                        return (
+                          <div key={cat} style={{ marginBottom: 6 }}>
+                            <div style={{ fontSize: 12, color: '#7a828c', marginBottom: 4 }}>{cat}（{items.length}）</div>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                              {items.map((a: any) => (
+                                <img key={a.id} src={`/api/attachments/${a.id}`} alt=""
+                                  onClick={(ev) => { ev.stopPropagation(); window.open(`/api/attachments/${a.id}`, '_blank'); }}
+                                  style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover', border: '0.5px solid #e5e7ec', cursor: 'pointer' }} />
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
                     <button
                       onClick={(ev) => {

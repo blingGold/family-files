@@ -62,6 +62,15 @@ export const api = {
     }).then((r) => r.data);
   },
 
+  uploadEncounterAttachment: async (encounterId: number, file: File, category: string) => {
+    const fd = new FormData();
+    fd.append('file', await compressImage(file));
+    return client.post(`/encounters/${encounterId}/attachments`, fd, {
+      params: { category },
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then((r) => r.data);
+  },
+  deleteAttachment: (id: number) => client.delete(`/attachments/${id}`).then((r) => r.data),
   uploadAttachment: async (file: File) => {
     const fd = new FormData();
     fd.append('file', await compressImage(file));

@@ -127,6 +127,7 @@ model Encounter {
   condition      Condition @relation(fields: [conditionId], references: [id], onDelete: Cascade)
   exams          Exam[]
   medications    Medication[]
+  attachments    Attachment[]
   procedures     Procedure[]
 
   @@index([conditionId])
@@ -275,6 +276,9 @@ model Attachment {
   procedure   Procedure? @relation(fields: [procedureId], references: [id], onDelete: Cascade)
   insuranceId Int?
   insurance   Insurance? @relation(fields: [insuranceId], references: [id], onDelete: Cascade)
+  encounterId Int?
+  encounter   Encounter? @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  category    String? // 图片分类：影像 / 抽血结果 / B超结果 / 其他等
 
   @@index([examId])
   @@index([procedureId])

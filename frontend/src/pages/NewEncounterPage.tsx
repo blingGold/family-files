@@ -14,6 +14,9 @@ export default function NewEncounterPage() {
   const isEdit = !!encounterId;
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(isEdit);
+  const [attachments, setAttachments] = useState<any[]>([]);
+  const [attCat, setAttCat] = useState('影像');
+  const attInputRef = useRef<HTMLInputElement>(null);
   const [date, setDate] = useState<Date>(new Date());
   const [pickerVisible, setPickerVisible] = useState(false);
   const [form, setForm] = useState<any>({});
@@ -49,6 +52,7 @@ export default function NewEncounterPage() {
         const e = await api.encounter(Number(encounterId));
         setDate(new Date(e.encounterDate));
         setEncounterNotes(e.notes || '');
+        setAttachments(e.attachments || []);
         setForm({
           hospital: e.hospital || '',
           department: e.department || '',
@@ -157,6 +161,39 @@ export default function NewEncounterPage() {
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#7a828c' }}>加载中…</div>;
 
+  // 分类图片附件：上传（压缩后逐张传）/删除
+  const handleAttUpload = async (e: any) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!files.length) return;
+    for (const f of files) {
+      try {
+        await api.uploadEncounterAttachment(Number(encounterId), f as File, attCat);
+      } catch (err: any) {
+        alert(err?.response?.data?.message || '上传失败，请重试');
+        break;
+      }
+    }
+    try {
+      const fresh = await api.encounter(Number(encounterId));
+      setAttachments(fresh.attachments || []);
+    } catch { /* ignore */ }
+  };
+  const removeAtt = async (attId: number) => {
+    if (!confirm('确定删除这张图片？')) return;
+    try {
+      await api.deleteAttachment(attId);
+      setAttachments((prev) => prev.filter((a: any) => a.id !== attId));
+    } catch (err: any) {
+      alert(err?.response?.data?.message || '删除失败');
+    }
+  };
+  const ATT_CATS = ['影像', '抽血结果', 'B超结果', '其他'];
+  const attGroups = ATT_CATS.map((cat) => ({
+    cat,
+    items: attachments.filter((a: any) => (a.category || '其他') === cat),
+  })).filter((g) => g.items.length > 0);
+
   // 复查完成自动生成的记录 → 顶部提示补全
   const autoFromFollowup = encounterNotes.startsWith('复查完成');
 
@@ -213,6 +250,45 @@ export default function NewEncounterPage() {
           <div style={{ fontSize: 13, color: '#7a828c', marginBottom: 4 }}>检查结果（每行一条，保存为检查记录）</div>
           <textarea style={{ ...inputStyle, minHeight: 60 }} value={form.examResult || ''} onChange={(e) => setForm({ ...form, examResult: e.target.value })} placeholder="如：MRI显示左侧基底节梗死（OCR 自动填入）" />
         </div>
+
+        {isEdit && (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 13, color: '#7a828c', marginBottom: 4 }}>图片附件（按分类上传多张：影像、抽血结果、B超结果等）</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+              {ATT_CATS.map((c) => (
+                <span key={c} onClick={() => { setAttCat(c); attInputRef.current?.click(); }} style={{
+                  fontSize: 12, padding: '6px 12px', borderRadius: 999, cursor: 'pointer',
+                  background: attCat === c ? '#5b8db8' : '#fff',
+                  color: attCat === c ? '#fff' : '#4a5568',
+                  border: '0.5px solid #e5e7ec',
+                }}>{attCat === c ? `正在传：${c}，点选图片` : c}</span>
+              ))}
+            </div>
+            <input ref={attInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleAttUpload} />
+            <div style={{ fontSize: 12, color: '#7a828c', marginBottom: 6 }}>已按分类保存，保存本页其他信息后图片不丢失；点击缩略图查看大图。</div>
+            {attGroups.length === 0 && (
+              <div style={{ fontSize: 12, color: '#aab2bd', background: '#fff', border: '0.5px dashed #e5e7ec', borderRadius: 8, padding: '14px', textAlign: 'center' }}>暂无图片，点击上方分类标签开始上传（可多选、可重复传）</div>
+            )}
+            {attGroups.map((g) => (
+              <div key={g.cat} style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 12, color: '#7a828c', marginBottom: 4 }}>{g.cat}（{g.items.length}）</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {g.items.map((a: any) => (
+                    <div key={a.id} style={{ position: 'relative' }}>
+                      <img src={`/api/attachments/${a.id}`} alt="" onClick={() => window.open(`/api/attachments/${a.id}`, '_blank')}
+                        style={{ width: 72, height: 72, borderRadius: 8, objectFit: 'cover', border: '0.5px solid #e5e7ec', cursor: 'pointer' }} />
+                      <span onClick={() => removeAtt(a.id)} style={{
+                        position: 'absolute', top: -6, right: -6, background: '#d97b7b', color: '#fff',
+                        width: 18, height: 18, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 11, cursor: 'pointer',
+                      }}>×</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 13, color: '#7a828c', marginBottom: 4 }}>用药建议（每行一条，保存为用药记录）</div>
           <textarea style={{ ...inputStyle, minHeight: 60 }} value={form.medication || ''} onChange={(e) => setForm({ ...form, medication: e.target.value })} placeholder="如：硝苯地平缓释片 30mg 每日一次（OCR 自动填入）" />
