@@ -22,9 +22,8 @@ export class FollowUpsService {
     const where: any = {
       status: 'PENDING',
       dueDate: { lte: horizon },
-      // 疾病已软删除、病人已软删除的复查不再提醒
-      condition: { deletedAt: null },
-      patient: { deletedAt: null },
+      // 疾病已软删除、病人已软删除的复查不再提醒（FollowUp 无 patient 关系，经 condition 关系链过滤）
+      condition: { deletedAt: null, patient: { deletedAt: null } },
     };
     if (scope === 'patient' && patientId) {
       await this.access.assertCanAccess(user, patientId);
@@ -142,7 +141,11 @@ export class FollowUpsService {
     const ids = await this.access.visiblePatientIds(user);
     const leadDays = Number(this.config.get('LEAD_DAYS') || 30);
     const horizon = new Date(Date.now() + leadDays * 86400000);
-    const where: any = { status: 'PENDING', dueDate: { lte: horizon } };
+    const where: any = {
+      status: 'PENDING',
+      dueDate: { lte: horizon },
+      condition: { deletedAt: null, patient: { deletedAt: null } },
+    };
     if (ids !== null) where.patientId = { in: ids };
     const count = await this.prisma.followUp.count({ where });
     return { count };
