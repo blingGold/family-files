@@ -270,9 +270,8 @@ export default function NewEncounterPage() {
           <textarea style={{ ...inputStyle, minHeight: 60 }} value={form.examResult || ''} onChange={(e) => setForm({ ...form, examResult: e.target.value })} placeholder="如：MRI显示左侧基底节梗死（OCR 自动填入）" />
         </div>
 
-        {isEdit && (
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 13, color: '#7a828c', marginBottom: 4 }}>图片附件（按分类上传多张：影像、抽血结果、B超结果等）</div>
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 13, color: '#7a828c', marginBottom: 4 }}>图片附件（按分类上传多张：影像、抽血结果、B超结果等）</div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
               {ATT_CATS.map((c) => (
                 <span key={c} onClick={() => { setAttCat(c); attInputRef.current?.click(); }} style={{
@@ -339,7 +338,6 @@ export default function NewEncounterPage() {
               </>
             )}
           </div>
-        )}
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 13, color: '#7a828c', marginBottom: 4 }}>用药建议（每行一条，保存为用药记录）</div>
           <textarea style={{ ...inputStyle, minHeight: 60 }} value={form.medication || ''} onChange={(e) => setForm({ ...form, medication: e.target.value })} placeholder="如：硝苯地平缓释片 30mg 每日一次（OCR 自动填入）" />

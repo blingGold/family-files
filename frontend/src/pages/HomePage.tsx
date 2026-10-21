@@ -643,8 +643,6 @@ export default function HomePage() {
               )}
             </div>
 
-            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <button onClick={closeNewCondition} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e5e7ec', background: '#fff', fontSize: 14 }}>取消</button>
               <div style={{ background: '#f6f7f9', borderRadius: 8, padding: 12, marginTop: 4 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#2b2f36', marginBottom: 8 }}>确诊图片（保存后自动上传，如诊断证明/影像单）</div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -686,6 +684,8 @@ export default function HomePage() {
                   );
                 })}
               </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button onClick={closeNewCondition} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e5e7ec', background: '#fff', fontSize: 14 }}>取消</button>
               <button onClick={submitNewCondition} disabled={savingCondition} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: savingCondition ? '#9dbcd4' : '#5b8db8', color: '#fff', fontSize: 14 }}>{savingCondition ? '保存中…' : '保存'}</button>
             </div>
           </div>
