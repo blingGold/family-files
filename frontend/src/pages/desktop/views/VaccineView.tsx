@@ -15,11 +15,11 @@ export default function VaccineView(props: { activeId: number }) {
 
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const statusOf = (v: any) => {
+  const statusOf = (v: any): { tone: 'green' | 'danger' | 'amber' | 'plain'; text: string } => {
     if (!v.nextDueDate) {
       return (v.doseIndex ?? 1) >= (v.doses ?? 1)
         ? { tone: 'green', text: '已打完' }
-        : { tone: 'default', text: '待安排' };
+        : { tone: 'plain', text: '待安排' };
     }
     const due = new Date(v.nextDueDate);
     const diff = Math.round((due.getTime() - todayStart.getTime()) / 86400000);
