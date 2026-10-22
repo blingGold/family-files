@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../api';
-import { C, Card, Tag, Empty, fmtDateCN, fmtDateTimeCN, groupAttachments, mobileOnly } from '../ui';
+import { C, Card, Tag, Empty, fmtDateCN, fmtDateTimeCN, groupAttachments, mobileOnly, isOverdue } from '../ui';
 
 export default function RecordView(props: { activeId: number; recordTarget?: { condId: number; encId: number } | null }) {
   const { activeId, recordTarget } = props;
@@ -47,7 +47,7 @@ export default function RecordView(props: { activeId: number; recordTarget?: { c
         <Card title={`疾病档案 · ${conds.length}`}>
           {conds.length === 0 && <Empty text="暂无疾病记录" style={{ padding: '16px' }} />}
           {conds.map((c: any) => {
-            const fuNum = (c.followUps || []).filter((f: any) => f.status === 'PENDING' && new Date(f.dueDate) < new Date()).length;
+            const fuNum = (c.followUps || []).filter((f: any) => isOverdue(f)).length;
             return (
               <div key={c.id} onClick={() => { setCondId(c.id); setSelEnc(null); }}
                 style={{ border: `1px solid ${condId === c.id ? C.brand : C.line}`, borderRadius: 10, padding: '11px 14px', cursor: 'pointer', marginBottom: 8, background: condId === c.id ? C.brandSoft : '#fff' }}>
@@ -189,7 +189,7 @@ function EncounterCard(props: { n: any; open: boolean; onToggle: () => void }) {
 function FollowUpCard(props: { n: any }) {
   const f = props.n.data;
   const dueDate = f.dueDate || props.n.date;
-  const overdue = f.status !== 'DONE' && new Date(dueDate) < new Date();
+  const overdue = isOverdue({ dueDate, status: f.status });
   return (
     <div style={{ border: `1px solid ${C.line}`, borderLeft: `3px solid ${overdue ? C.danger : C.amber}`, borderRadius: 8, padding: '10px 12px', cursor: 'default', background: '#fff' }}>
       <div style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>

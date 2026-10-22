@@ -70,18 +70,23 @@ export function calcAge(birthDate: any): number | null {
   return age >= 0 ? age : null;
 }
 
-/** 复查是否逾期 */
+/** 复查是否逾期：当天到期不算逾期，从次日 0 点起算（dueDate < 今天零点） */
 export function isOverdue(f: any): boolean {
   if (f.status === 'DONE') return false;
-  if (typeof f.overdue === 'boolean') return f.overdue;
   const d = new Date(f.dueDate);
-  return !isNaN(d.getTime()) && d.getTime() < Date.now();
+  if (isNaN(d.getTime())) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return d.getTime() < today.getTime();
 }
 
 export function overdueDays(f: any): number {
   const d = new Date(f.dueDate);
   if (isNaN(d.getTime())) return 0;
-  return Math.max(0, Math.round((Date.now() - d.getTime()) / 86400000));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.floor((today.getTime() - d.getTime()) / 86400000);
+  return days > 0 ? days : 0;
 }
 
 /** 每个病人的逾期复查数（列表接口已含 conditions.followUps） */
