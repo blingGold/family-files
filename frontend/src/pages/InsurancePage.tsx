@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { TabBar } from 'antd-mobile';
 import { AppOutline, BellOutline, CheckShieldOutline, UserOutline } from 'antd-mobile-icons';
+import { SyringeIcon } from '../components/SyringeIcon';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
@@ -40,9 +41,10 @@ export default function InsurancePage() {
       </div>
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: '0.5px solid #e5e7ec' }}>
         <div style={{ maxWidth: 480, margin: '0 auto' }}>
-          <TabBar activeKey={tab} onChange={(k) => { setTab(k); if (k === 'home') nav('/'); else if (k === 'alarm') nav('/followups'); else if (k === 'me') nav('/me'); }}>
+          <TabBar activeKey={tab} onChange={(k) => { setTab(k); if (k === 'home') nav('/'); else if (k === 'alarm') nav('/followups'); else if (k === 'vac') nav('/vaccines'); else if (k === 'me') nav('/me'); }}>
             <TabBar.Item key="home" title="首页" icon={<AppOutline style={{ fontSize: 22 }} />} />
             <TabBar.Item key="alarm" title="提醒" icon={<BellOutline style={{ fontSize: 22 }} />} />
+            <TabBar.Item key="vac" title="疫苗" icon={<SyringeIcon />} />
             <TabBar.Item key="ins" title="保险" icon={<CheckShieldOutline style={{ fontSize: 22 }} />} />
             <TabBar.Item key="me" title="我的" icon={<UserOutline style={{ fontSize: 22 }} />} />
           </TabBar>

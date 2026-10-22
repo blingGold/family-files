@@ -7,6 +7,7 @@ import FollowUpsPage from './pages/FollowUpsPage';
 import ConditionTimelinePage from './pages/ConditionTimelinePage';
 import NewEncounterPage from './pages/NewEncounterPage';
 import InsurancePage from './pages/InsurancePage';
+import VaccinePage from './pages/VaccinePage';
 import MePage from './pages/MePage';
 import UserAdminPage from './pages/UserAdminPage';
 import PatientDetailPage from './pages/PatientDetailPage';
@@ -49,6 +50,7 @@ export default function App() {
         <Route path="/conditions/:conditionId/new-encounter" element={<NewEncounterPage />} />
         <Route path="/encounters/:encounterId/edit" element={<NewEncounterPage />} />
         <Route path="/insurance" element={<InsurancePage />} />
+        <Route path="/vaccines" element={<VaccinePage />} />
         <Route path="/me" element={<MePage />} />
         <Route path="/admin/users" element={<UserAdminPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -64,6 +64,7 @@ model Patient {
   access        UserPatientAccess[]
   conditions    Condition[]
   insurances    Insurance[]
+  vaccines      Vaccine[]
 }
 
 enum Gender {
@@ -259,6 +260,26 @@ model Insurance {
 enum InsuranceKind {
   MEDICAL
   COMMERCIAL
+}
+
+// ---------- 疫苗管理 ----------
+model Vaccine {
+  id           Int       @id @default(autoincrement())
+  patientId    Int
+  name         String // 疫苗名称，如 乙肝疫苗（第1剂）
+  brand        String? // 厂家 / 品牌
+  doses        Int       @default(1) // 总剂次，如 3
+  doseIndex    Int       @default(1) // 已接种至第几剂
+  vaccinatedAt DateTime? // 最近接种日期
+  nextDueDate  DateTime? // 下一针预约时间
+  clinic       String? // 接种机构
+  note         String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  patient      Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
 }
 
 // ---------- 附件（方案 A：只通过外键挂载到 exam / procedure / insurance 之一）----------

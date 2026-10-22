@@ -51,6 +51,17 @@ export const api = {
   createInsurance: (patientId: number, data: any) =>
     client.post(`/patients/${patientId}/insurances`, data).then((r) => r.data),
 
+  vaccines: (patientId: number) =>
+    client.get(`/patients/${patientId}/vaccines`).then((r) => r.data),
+  createVaccine: (patientId: number, data: any) =>
+    client.post(`/patients/${patientId}/vaccines`, data).then((r) => r.data),
+  updateVaccine: (id: number, data: any) =>
+    client.put(`/vaccines/${id}`, data).then((r) => r.data),
+  deleteVaccine: (id: number) =>
+    client.delete(`/vaccines/${id}`).then((r) => r.data),
+  completeNextVaccine: (id: number) =>
+    client.post(`/vaccines/${id}/complete-next`).then((r) => r.data),
+
   exportSummary: (conditionId: number, encounterIds: number[]) =>
     client.post(`/conditions/${conditionId}/export-summary`, { encounterIds }).then((r) => r.data),
   ocr: async (file: File) => {

@@ -9,6 +9,7 @@ import RecordView from './views/RecordView';
 import MedsView from './views/MedsView';
 import FollowupsView from './views/FollowupsView';
 import InsuranceView from './views/InsuranceView';
+import VaccineView from './views/VaccineView';
 import './desktop.css';
 
 const TABS = [
@@ -16,6 +17,7 @@ const TABS = [
   { key: 'record', label: '病历' },
   { key: 'meds', label: '用药' },
   { key: 'followups', label: '复查' },
+  { key: 'vaccines', label: '疫苗' },
   { key: 'insurance', label: '保险' },
 ] as const;
 
@@ -143,6 +145,7 @@ export default function DesktopApp() {
               {tab === 'record' && <RecordView activeId={activeId} recordTarget={recordTarget} />}
               {tab === 'meds' && <MedsView activeId={activeId} />}
               {tab === 'followups' && <FollowupsView activeId={activeId} />}
+              {tab === 'vaccines' && <VaccineView activeId={activeId} />}
               {tab === 'insurance' && <InsuranceView activeId={activeId} />}
             </>
           )}

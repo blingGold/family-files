@@ -1,6 +1,6 @@
 # ============================================================
 # 家庭病历档案管理系统 - Docker Compose（极空间/通用版）
-# 部署包版本：v12.6.17（2026-10-22）
+# 部署包版本：v12.6.18（2026-10-22）
 #   【镜像策略】镜像 tag 固定为 latest（重建自动覆盖，不再堆积历史版本镜像）；
 #   版本号以本注释 + 镜像 label（version=v12.5）为准；
 #   重建后旧镜像变 <none> 悬空镜像，可在极空间镜像页一键清理（保留最新两个 family 镜像即可）
@@ -31,7 +31,7 @@ services:
     build:
       context: ./backend
       args:
-        APP_VERSION: v12.6.17
+        APP_VERSION: v12.6.18
     image: family-files-backend:latest
     restart: unless-stopped
     # 密钥统一从 data/backend.env 读取（data/ 是保留目录，升级/重建不丢，
@@ -62,7 +62,7 @@ services:
     build:
       context: ./frontend
       args:
-        APP_VERSION: v12.6.17
+        APP_VERSION: v12.6.18
     image: family-files-frontend:latest
     restart: unless-stopped
     ports:

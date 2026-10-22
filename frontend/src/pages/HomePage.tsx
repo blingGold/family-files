@@ -7,6 +7,7 @@ import {
   ClockCircleOutline,
   UserOutline,
 } from 'antd-mobile-icons';
+import { SyringeIcon } from '../components/SyringeIcon';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
@@ -695,9 +696,10 @@ export default function HomePage() {
 
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, display: 'flex', justifyContent: 'center', background: '#fff', borderTop: '0.5px solid #e5e7ec', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div style={{ width: '100%', maxWidth: 480 }}>
-          <TabBar activeKey={tab} style={{ height: 56 }} onChange={(k) => { setTab(k); if (k === 'alarm') nav('/followups'); else if (k === 'home') nav('/'); else if (k === 'ins') nav('/insurance'); else if (k === 'me') nav('/me'); }}>
+          <TabBar activeKey={tab} style={{ height: 56 }} onChange={(k) => { setTab(k); if (k === 'alarm') nav('/followups'); else if (k === 'home') nav('/'); else if (k === 'vac') nav('/vaccines'); else if (k === 'ins') nav('/insurance'); else if (k === 'me') nav('/me'); }}>
             <TabBar.Item key="home" title="首页" icon={<AppOutline style={{ fontSize: 22 }} />} />
             <TabBar.Item key="alarm" title="提醒" icon={<BellWithBadge count={badgeQ.data?.count || 0} />} />
+            <TabBar.Item key="vac" title="疫苗" icon={<SyringeIcon />} />
             <TabBar.Item key="ins" title="保险" icon={<CheckShieldOutline style={{ fontSize: 22 }} />} />
             <TabBar.Item key="me" title="我的" icon={<UserOutline style={{ fontSize: 22 }} />} />
           </TabBar>

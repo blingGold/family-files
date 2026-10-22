@@ -11,6 +11,7 @@ import { ConditionsModule } from './conditions/conditions.module';
 import { EncountersModule } from './encounters/encounters.module';
 import { FollowUpsModule } from './followups/followups.module';
 import { InsurancesModule } from './insurances/insurances.module';
+import { VaccinesModule } from './vaccines/vaccines.module';
 import { AttachmentsModule } from './attachments/attachments.module';
 import { OcrModule } from './ocr/ocr.module';
 import { SummaryModule } from './summary/summary.module';
@@ -28,6 +29,7 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
     EncountersModule,
     FollowUpsModule,
     InsurancesModule,
+    VaccinesModule,
     AttachmentsModule,
     OcrModule,
     SummaryModule,
