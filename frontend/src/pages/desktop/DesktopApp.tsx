@@ -63,7 +63,7 @@ export default function DesktopApp() {
     <div className="d-shell">
       {/* ===== 左侧病人栏（全局常驻） ===== */}
       <aside className="d-side">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 18px 12px', borderBottom: `1px solid ${C.line2}` }}>
+        <div className="d-brand">
           <div style={{ width: 30, height: 30, borderRadius: 8, background: C.brand, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flex: 'none' }}>家</div>
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: C.ink }}>家庭病历</div>

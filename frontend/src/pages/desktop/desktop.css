@@ -1,12 +1,15 @@
 /* 桌面端应用壳样式（≥1024px） */
+.d-shell,.d-shell *{box-sizing:border-box}
 .d-shell{display:flex;min-height:100vh;background:#f3f6f9;color:#22303e;font-family:'PingFang SC','Microsoft YaHei',system-ui,sans-serif}
 .d-side{width:256px;flex:none;background:#fff;border-right:1px solid #e2e8ef;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+/* 左侧品牌栏与右侧顶栏统一高度 66px，水平对齐 */
+.d-brand{display:flex;align-items:center;gap:10px;padding:0 18px;height:66px;border-bottom:1px solid #eef2f6;flex:none}
 .d-main{flex:1;min-width:0;display:flex;flex-direction:column;height:100vh;overflow:hidden}
 .d-body{flex:1;overflow:auto;padding:20px 24px}
 .d-side ::-webkit-scrollbar,.d-body::-webkit-scrollbar{width:8px;height:8px}
 .d-side ::-webkit-scrollbar-thumb,.d-body::-webkit-scrollbar-thumb{background:#d4dce5;border-radius:4px}
 .d-side ::-webkit-scrollbar-track,.d-body::-webkit-scrollbar-track{background:transparent}
-.d-top{background:#fff;border-bottom:1px solid #e2e8ef;padding:14px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;flex:none}
+.d-top{background:#fff;border-bottom:1px solid #e2e8ef;padding:0 24px;min-height:66px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;flex:none}
 .d-tabs{display:flex;gap:2px;background:#fff;border-bottom:1px solid #e2e8ef;padding:0 20px;flex:none}
 .d-tab{padding:12px 18px;font-size:14px;color:#65717e;cursor:pointer;border-bottom:2px solid transparent;font-weight:500;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit}
 .d-tab:hover{color:#22303e}
