@@ -43,10 +43,12 @@ export default function FollowUpsPage() {
 
   const list = listQ.data || [];
   const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const filtered = list.filter((f: any) => {
     const due = new Date(f.dueDate);
-    if (filter === 'overdue') return due < now;
-    if (filter === 'soon') return due >= now;
+    const isDone = f.status === 'DONE';
+    if (filter === 'overdue') return !isDone && due < todayStart;
+    if (filter === 'soon') return due >= todayStart;
     return true;
   });
 
@@ -143,8 +145,9 @@ export default function FollowUpsPage() {
         )}
         {filtered.map((f: any) => {
           const due = new Date(f.dueDate);
-          const overdue = due < now;
-          const d = Math.round((overdue ? now.getTime() - due.getTime() : due.getTime() - now.getTime()) / 86400000);
+          const isDone = f.status === 'DONE';
+          const overdue = !isDone && due < todayStart;
+          const d = isDone ? 0 : Math.round((overdue ? todayStart.getTime() - due.getTime() : due.getTime() - todayStart.getTime()) / 86400000);
           return (
             <div key={f.id} style={{
               background: '#fff', borderRadius: 16, padding: 14, marginBottom: 10,
@@ -153,8 +156,8 @@ export default function FollowUpsPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{
                   width: 36, height: 36, borderRadius: 12, flexShrink: 0,
-                  background: overdue ? 'rgba(194,107,90,0.12)' : 'rgba(217,166,72,0.14)',
-                  color: overdue ? '#c26b5a' : '#d9a648',
+                  background: isDone ? 'rgba(78,154,111,0.14)' : overdue ? 'rgba(194,107,90,0.12)' : 'rgba(217,166,72,0.14)',
+                  color: isDone ? '#4e9a6f' : overdue ? '#c26b5a' : '#d9a648',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                   <ClockCircleOutline style={{ fontSize: 18 }} />
@@ -163,8 +166,8 @@ export default function FollowUpsPage() {
                   <div style={{ fontSize: 14, fontWeight: 500, color: '#2b2f36' }}>
                     {f.condition?.name || '复查计划'}
                   </div>
-                  <div style={{ fontSize: 12, color: overdue ? '#c26b5a' : '#7a828c', marginTop: 3 }}>
-                    {overdue ? `逾期 ${d} 天 · ` : `${d} 天后 · `}{fmtDate(f.dueDate)} {f.items ? `· ${f.items}` : ''}
+                  <div style={{ fontSize: 12, color: isDone ? '#4e9a6f' : (overdue ? '#c26b5a' : '#7a828c'), marginTop: 3 }}>
+                    {isDone ? '已完成 · ' : overdue ? `逾期 ${d} 天 · ` : (d === 0 ? '今天 · ' : `${d} 天后 · `)}{fmtDate(f.dueDate)} {f.items ? `· ${f.items}` : ''}
                   </div>
                 </div>
               </div>

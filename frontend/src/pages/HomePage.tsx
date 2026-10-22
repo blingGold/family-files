@@ -139,7 +139,7 @@ export default function HomePage() {
     queryFn: () => api.followups({ scope: 'patient', patientId }),
     enabled: !!patientId,
   });
-  const pendingFus = (fuQ.data || []).map((f: any) => ({ ...f, conditionName: f.condition?.name || '' }));
+  const pendingFus = (fuQ.data || []).filter((f: any) => f.status !== 'DONE').map((f: any) => ({ ...f, conditionName: f.condition?.name || '' }));
   const insurances = patient?.insurances || [];
   // 当前用药：自动过滤已失效（endDate 早于今天）的记录
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -396,7 +396,8 @@ export default function HomePage() {
         )}
         {pendingFus.map((f: any) => {
           const due = new Date(f.dueDate); const now = new Date();
-          const overdue = due < now; const d = daysBetween(now, due);
+          const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const overdue = due < todayStart; const d = daysBetween(due, todayStart);
           return (
             <div key={f.id} onClick={() => nav(`/conditions/${f.conditionId}`)} style={{ background: '#fff', borderRadius: 16, padding: 14, marginBottom: 10, border: '0.5px solid #e5e7ec', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
               <div style={{ width: 36, height: 36, borderRadius: 12, flexShrink: 0, background: overdue ? 'rgba(194,107,90,0.12)' : 'rgba(217,166,72,0.14)', color: overdue ? '#c26b5a' : '#d9a648', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -405,7 +406,7 @@ export default function HomePage() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 500, color: '#2b2f36' }}>{f.conditionName} · {f.items || '复查'}</div>
                 <div style={{ fontSize: 12, marginTop: 3, color: overdue ? '#c26b5a' : '#7a828c' }}>
-                  {overdue ? `逾期 ${-d} 天 · ` : `${d} 天后 · `}{fmtDate(f.dueDate)}
+                  {overdue ? `逾期 ${d} 天 · ` : (d === 0 ? '今天 · ' : `${d} 天后 · `)}{fmtDate(f.dueDate)}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>

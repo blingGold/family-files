@@ -39,12 +39,12 @@ export class FollowUpsService {
         condition: { select: { id: true, name: true } },
       },
     });
-    // 逾期口径：当天到期不算逾期，从次日 0 点起算（dueDate < 今天零点）
+    // 逾期口径：当天到期不算逾期，从次日 0 点起算（dueDate < 今天零点）；已完成的不算逾期
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     return rows.map((r) => ({
       ...r,
-      overdue: r.dueDate < todayStart,
+      overdue: r.status !== 'DONE' && r.dueDate < todayStart,
       overdueDays: r.dueDate < todayStart
         ? Math.floor((todayStart.getTime() - r.dueDate.getTime()) / 86400000)
         : Math.floor((r.dueDate.getTime() - todayStart.getTime()) / 86400000),
