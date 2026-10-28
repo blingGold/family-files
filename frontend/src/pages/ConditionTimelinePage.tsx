@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { NavBar, DatePicker, Checkbox, Dialog } from 'antd-mobile';
 import { useRef, useState } from 'react';
 import { api } from '../api';
+import { attUrl } from '../api';
 import { fmtDate } from '../utils/date';
 
 const inputStyle: React.CSSProperties = {
@@ -316,8 +317,8 @@ export default function ConditionTimelinePage() {
                       <div style={{ fontSize: 12, color: '#7a828c', marginBottom: 4 }}>{cat}（{items.length}）</div>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         {items.map((a: any) => (
-                          <img key={a.id} src={`/api/attachments/${a.id}`} alt=""
-                            onClick={() => window.open(`/api/attachments/${a.id}`, '_blank')}
+                          <img key={a.id} src={attUrl(a.id)} alt=""
+                            onClick={() => window.open(attUrl(a.id), '_blank')}
                             style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover', border: '0.5px solid #e5e7ec', cursor: 'pointer' }} />
                         ))}
                       </div>
@@ -373,8 +374,8 @@ export default function ConditionTimelinePage() {
                             <div style={{ fontSize: 12, color: '#7a828c', marginBottom: 4 }}>{cat}（{items.length}）</div>
                             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                               {items.map((a: any) => (
-                                <img key={a.id} src={`/api/attachments/${a.id}`} alt=""
-                                  onClick={(ev) => { ev.stopPropagation(); window.open(`/api/attachments/${a.id}`, '_blank'); }}
+                                <img key={a.id} src={attUrl(a.id)} alt=""
+                                  onClick={(ev) => { ev.stopPropagation(); window.open(attUrl(a.id), '_blank'); }}
                                   style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover', border: '0.5px solid #e5e7ec', cursor: 'pointer' }} />
                               ))}
                             </div>

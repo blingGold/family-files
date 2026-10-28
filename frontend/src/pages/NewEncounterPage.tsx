@@ -2,6 +2,7 @@ import { NavBar, DatePicker, Checkbox } from 'antd-mobile';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
+import { attUrl } from '../api';
 import { compressImage } from '../utils/image';
 
 const inputStyle: React.CSSProperties = {
@@ -295,7 +296,7 @@ export default function NewEncounterPage() {
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       {g.items.map((a: any) => (
                         <div key={a.id} style={{ position: 'relative' }}>
-                          <img src={`/api/attachments/${a.id}`} alt="" onClick={() => window.open(`/api/attachments/${a.id}`, '_blank')}
+                          <img src={attUrl(a.id)} alt="" onClick={() => window.open(attUrl(a.id), '_blank')}
                             style={{ width: 72, height: 72, borderRadius: 8, objectFit: 'cover', border: '0.5px solid #e5e7ec', cursor: 'pointer' }} />
                           <span onClick={() => removeAtt(a.id)} style={{
                             position: 'absolute', top: -6, right: -6, background: '#d97b7b', color: '#fff',

@@ -1,5 +1,12 @@
 import client from './client';
 import { compressImage } from '../utils/image';
+import { useAuthStore } from '../store/auth';
+
+/** 附件图片展示地址：<img> 无法带 Authorization 头，改为 query 携带 token */
+export const attUrl = (id: number) => {
+  const t = useAuthStore.getState().token || '';
+  return `/api/attachments/${id}?token=${encodeURIComponent(t)}`;
+};
 
 export const api = {
   login: (username: string, password: string) =>

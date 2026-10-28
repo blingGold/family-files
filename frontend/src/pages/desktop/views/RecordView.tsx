@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../api';
+import { attUrl } from '../../../api';
 import { C, Card, Tag, Empty, fmtDateCN, fmtDateTimeCN, groupAttachments, mobileOnly, isOverdue } from '../ui';
 
 export default function RecordView(props: { activeId: number; recordTarget?: { condId: number; encId: number } | null }) {
@@ -168,8 +169,8 @@ function EncounterCard(props: { n: any; open: boolean; onToggle: () => void }) {
                   <div style={{ fontSize: 11, color: C.ink2, marginBottom: 4 }}>{g.cat}（{g.items.length}）</div>
                   <div style={{ display: 'flex', gap: 6 }}>
                     {g.items.map((a: any) => (
-                      <img key={a.id} src={`/api/attachments/${a.id}`} alt=""
-                        onClick={(ev) => { ev.stopPropagation(); window.open(`/api/attachments/${a.id}`, '_blank'); }}
+                      <img key={a.id} src={attUrl(a.id)} alt=""
+                        onClick={(ev) => { ev.stopPropagation(); window.open(attUrl(a.id), '_blank'); }}
                         style={{ width: 72, height: 72, borderRadius: 8, objectFit: 'cover', border: `1px solid ${C.line}`, cursor: 'pointer' }} />
                     ))}
                   </div>

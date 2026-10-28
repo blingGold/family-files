@@ -15,6 +15,12 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       context.getClass(),
     ]);
     if (isPublic) return true;
+    // 附件图片用 <img src> 展示，无法带 Authorization 头；允许 GET /api/attachments/:id 通过 ?token= 查询参数携带令牌
+    const req = context.switchToHttp().getRequest();
+    const isAttachmentView = req.method === 'GET' && /^\/api\/attachments\/\d+$/.test(req.path || '');
+    if (isAttachmentView && !req.headers?.authorization && req.query?.token) {
+      req.headers.authorization = `Bearer ${req.query.token}`;
+    }
     return super.canActivate(context);
   }
 }
