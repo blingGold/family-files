@@ -22,7 +22,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
 import { AccessService } from '../common/access.service';
 
-@Controller('attachments')
+@Controller()
 export class AttachmentsController {
   constructor(
     private prisma: PrismaService,
@@ -36,7 +36,7 @@ export class AttachmentsController {
     return dir;
   }
 
-  @Post()
+  @Post('attachments')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
@@ -179,7 +179,7 @@ export class AttachmentsController {
   }
 
   /** 删除附件（校验所属就诊/检查/手术/保险/疾病的病人访问权限，物理删除文件与记录） */
-  @Delete(':id')
+  @Delete('attachments/:id')
   async remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     const att = await this.prisma.attachment.findUnique({ where: { id: Number(id) } });
     if (!att) throw new NotFoundException('附件不存在');
@@ -211,7 +211,7 @@ export class AttachmentsController {
     return { ok: true };
   }
 
-  @Get(':id')
+  @Get('attachments/:id')
   async download(@CurrentUser() _user: AuthUser, @Param('id') id: string, @Res() res: Response) {
     const att = await this.prisma.attachment.findUnique({ where: { id: Number(id) } });
     if (!att) return res.status(404).send('not found');
