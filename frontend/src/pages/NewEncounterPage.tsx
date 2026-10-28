@@ -180,7 +180,7 @@ export default function NewEncounterPage() {
     if (isEdit) {
       for (const f of files) {
         try {
-          await api.uploadEncounterAttachment(Number(encounterId), f as File, attCat);
+          await api.uploadEncounterAttachment(Number(encounterId), await compressImage(f as File), attCat);
         } catch (err: any) {
           alert(err?.response?.data?.message || '上传失败，请重试');
           break;

@@ -52,7 +52,10 @@ export class AttachmentsController {
       }),
       limits: { fileSize: 10 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        if (!file.mimetype.startsWith('image/')) {
+        const ext = path.extname(file.originalname).toLowerCase();
+        const imgExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif', '.bmp'];
+        // 微信/部分安卓 WebView 上传的图片 mimetype 可能为空或 octet-stream，按扩展名兜底
+        if (!file.mimetype.startsWith('image/') && !imgExts.includes(ext)) {
           cb(new BadRequestException('只允许上传图片'), false);
         } else {
           cb(null, true);
@@ -90,7 +93,10 @@ export class AttachmentsController {
       }),
       limits: { fileSize: 10 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        if (!file.mimetype.startsWith('image/')) {
+        const ext = path.extname(file.originalname).toLowerCase();
+        const imgExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif', '.bmp'];
+        // 微信/部分安卓 WebView 上传的图片 mimetype 可能为空或 octet-stream，按扩展名兜底
+        if (!file.mimetype.startsWith('image/') && !imgExts.includes(ext)) {
           cb(new BadRequestException('只允许上传图片'), false);
         } else {
           cb(null, true);
@@ -138,7 +144,10 @@ export class AttachmentsController {
       }),
       limits: { fileSize: 10 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        if (!file.mimetype.startsWith('image/')) {
+        const ext = path.extname(file.originalname).toLowerCase();
+        const imgExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif', '.bmp'];
+        // 微信/部分安卓 WebView 上传的图片 mimetype 可能为空或 octet-stream，按扩展名兜底
+        if (!file.mimetype.startsWith('image/') && !imgExts.includes(ext)) {
           cb(new BadRequestException('只允许上传图片'), false);
         } else {
           cb(null, true);

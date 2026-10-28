@@ -5,7 +5,10 @@
  */
 export function compressImage(file: File): Promise<File> {
   return new Promise((resolve) => {
-    if (!file.type.startsWith('image/')) return resolve(file);
+    // 微信/部分安卓 WebView 的 file.type 可能为空或 octet-stream，按扩展名识别图片
+    const isImage =
+      file.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i.test(file.name);
+    if (!isImage) return resolve(file);
     if (file.size < 1024 * 1024) return resolve(file); // <1MB 不压
 
     const url = URL.createObjectURL(file);
