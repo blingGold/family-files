@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../api';
 import { attUrl } from '../../../api';
+import ImageViewer from '../../../components/ImageViewer';
 import { C, Card, Tag, Empty, fmtDateCN, fmtDateTimeCN, groupAttachments, mobileOnly, isOverdue } from '../ui';
 
 export default function RecordView(props: { activeId: number; recordTarget?: { condId: number; encId: number } | null }) {
@@ -133,6 +134,7 @@ function Row(props: { k: string; v: string }) {
 
 function EncounterCard(props: { n: any; open: boolean; onToggle: () => void }) {
   const d = props.n.data;
+  const [viewUrl, setViewUrl] = useState<string | null>(null);
   return (
     <div style={{ border: `1px solid ${C.line}`, borderLeft: `3px solid ${C.brand}`, borderRadius: 8, padding: '10px 12px', cursor: 'pointer', background: props.open ? '#f6fafd' : '#fff' }} onClick={props.onToggle}>
       <div style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -170,7 +172,7 @@ function EncounterCard(props: { n: any; open: boolean; onToggle: () => void }) {
                   <div style={{ display: 'flex', gap: 6 }}>
                     {g.items.map((a: any) => (
                       <img key={a.id} src={attUrl(a.id)} alt=""
-                        onClick={(ev) => { ev.stopPropagation(); window.open(attUrl(a.id), '_blank'); }}
+                        onClick={(ev) => { ev.stopPropagation(); setViewUrl(attUrl(a.id)); }}
                         style={{ width: 72, height: 72, borderRadius: 8, objectFit: 'cover', border: `1px solid ${C.line}`, cursor: 'pointer' }} />
                     ))}
                   </div>
@@ -183,6 +185,7 @@ function EncounterCard(props: { n: any; open: boolean; onToggle: () => void }) {
           </div>
         </div>
       )}
+      {viewUrl && <ImageViewer url={viewUrl} onClose={() => setViewUrl(null)} />}
     </div>
   );
 }

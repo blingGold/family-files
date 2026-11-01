@@ -4,6 +4,7 @@ import { NavBar, DatePicker, Checkbox, Dialog } from 'antd-mobile';
 import { useRef, useState } from 'react';
 import { api } from '../api';
 import { attUrl } from '../api';
+import ImageViewer from '../components/ImageViewer';
 import { fmtDate } from '../utils/date';
 
 const inputStyle: React.CSSProperties = {
@@ -74,6 +75,7 @@ export default function ConditionTimelinePage() {
   const [ocrBusy, setOcrBusy] = useState(false);
   const [ocrText, setOcrText] = useState('');
   const [editingFu, setEditingFu] = useState<any>(null);
+  const [viewUrl, setViewUrl] = useState<string | null>(null);
   const [ocrExtra, setOcrExtra] = useState('');
   const [savingFu, setSavingFu] = useState(false);
   const ocrInputRef = useRef<HTMLInputElement>(null);
@@ -318,7 +320,7 @@ export default function ConditionTimelinePage() {
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         {items.map((a: any) => (
                           <img key={a.id} src={attUrl(a.id)} alt=""
-                            onClick={() => window.open(attUrl(a.id), '_blank')}
+                            onClick={() => setViewUrl(attUrl(a.id))}
                             style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover', border: '0.5px solid #e5e7ec', cursor: 'pointer' }} />
                         ))}
                       </div>
@@ -375,7 +377,7 @@ export default function ConditionTimelinePage() {
                             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                               {items.map((a: any) => (
                                 <img key={a.id} src={attUrl(a.id)} alt=""
-                                  onClick={(ev) => { ev.stopPropagation(); window.open(attUrl(a.id), '_blank'); }}
+                                  onClick={(ev) => { ev.stopPropagation(); setViewUrl(attUrl(a.id)); }}
                                   style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover', border: '0.5px solid #e5e7ec', cursor: 'pointer' }} />
                               ))}
                             </div>
@@ -587,6 +589,7 @@ export default function ConditionTimelinePage() {
         }}
         title={exportPicker === 'from' ? '选择开始日期' : '选择结束日期'}
       />
+      {viewUrl && <ImageViewer url={viewUrl} onClose={() => setViewUrl(null)} />}
     </div>
   );
 }
